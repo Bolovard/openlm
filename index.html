@@ -1776,12 +1776,6 @@
             // Images travel separately via openaiContentParts / imageBase64s
             let modelInputText = modelApiText;
             const currentLang = localStorage.getItem('gpt_local_language') || 'en-US';
-            if (currentLang !== 'en-US' && currentLang !== 'en-UK') {
-                const langNames = { 'es': 'Spanish', 'fr': 'French', 'de': 'German', 'zh': 'Chinese', 'ja': 'Japanese' };
-                if (langNames[currentLang]) {
-                    modelInputText += `\n\n(SYSTEM INSTRUCTION: You MUST formulate your entire response in ${langNames[currentLang].toUpperCase()})`;
-                }
-            }
 
             // Build the OpenAI multipart content array for vision-capable endpoints.
             // openaiContentParts is used for both 'openai' and 'custom' endpoint types.
@@ -1794,6 +1788,41 @@
                     ...openaiImageUrlObjs
                 ];
             }
+
+            // Get Custom System Prompt (needed for conversation history below)
+            const customSystemPrompt = localStorage.getItem('gpt_local_system_prompt');
+
+            // ── Build conversation history for multi-turn memory ────────────────
+            // Include all prior messages from the current chat so the model
+            // remembers what has been discussed in this session.
+            const conversationHistory = [];
+            if (customSystemPrompt && customSystemPrompt.trim()) {
+                let sysContent = customSystemPrompt.trim();
+                // Append language instruction to system prompt if non-English
+                if (currentLang !== 'en-US' && currentLang !== 'en-UK') {
+                    const langNames = { 'es': 'Spanish', 'fr': 'French', 'de': 'German', 'zh': 'Chinese', 'ja': 'Japanese' };
+                    if (langNames[currentLang]) {
+                        sysContent += `\n\nIMPORTANT: You MUST formulate your entire response in ${langNames[currentLang].toUpperCase()}.`;
+                    }
+                }
+                conversationHistory.push({ role: 'system', content: sysContent });
+            } else if (currentLang !== 'en-US' && currentLang !== 'en-UK') {
+                const langNames = { 'es': 'Spanish', 'fr': 'French', 'de': 'German', 'zh': 'Chinese', 'ja': 'Japanese' };
+                if (langNames[currentLang]) {
+                    conversationHistory.push({ role: 'system', content: `You MUST formulate your entire response in ${langNames[currentLang].toUpperCase()}.` });
+                }
+            }
+
+            // Add all prior messages (everything except the latest user message we just pushed)
+            if (currentChat && currentChat.messages.length > 1) {
+                const priorMessages = currentChat.messages.slice(0, -1);
+                for (const msg of priorMessages) {
+                    conversationHistory.push({ role: msg.role, content: msg.content });
+                }
+            }
+
+            // Add the current user message (with image parts if applicable)
+            conversationHistory.push({ role: 'user', content: openaiContentParts ?? modelInputText });
 
             // ── Helper: consume a ReadableStream line-by-line ──────────────────────
             async function* streamLines(reader) {
@@ -1874,9 +1903,6 @@
             })();
 
             try {
-                // Get Custom System Prompt
-                const customSystemPrompt = localStorage.getItem('gpt_local_system_prompt');
-
                 if (activeEndpoint.type === 'mock') {
                     // Mock: push chars into queue at a simulated generation speed
                     const mockText = `*(Local Network Check)*\n\nI received: "${text}".\n\nThis is a fully local environment. To connect to your real models via \`http://local\`, ensure your service allows cross-origin requests.`;
@@ -1887,12 +1913,22 @@
                     }
 
                 } else if (activeEndpoint.type === 'ollama') {
-                    // Ollama: newline-delimited JSON stream
-                    const ollamaBody = { model: activeEndpoint.model, prompt: modelInputText, stream: true };
-                    if (customSystemPrompt && customSystemPrompt.trim()) ollamaBody.system = customSystemPrompt.trim();
-                    if (imageBase64s.length > 0) ollamaBody.images = imageBase64s;
+                    // Ollama: /api/chat with messages array for multi-turn memory
+                    // Build Ollama-format messages (Ollama uses same role/content structure)
+                    const ollamaMsgs = conversationHistory.map(m => {
+                        // Ollama doesn't support openai-style content arrays, use plain text
+                        const content = typeof m.content === 'string' ? m.content
+                            : (Array.isArray(m.content) ? m.content.filter(p => p.type === 'text').map(p => p.text).join('\n') : String(m.content));
+                        return { role: m.role, content };
+                    });
+                    const ollamaBody = { model: activeEndpoint.model, messages: ollamaMsgs, stream: true };
+                    // Attach images to the last user message for vision models
+                    if (imageBase64s.length > 0) {
+                        const lastMsg = ollamaBody.messages[ollamaBody.messages.length - 1];
+                        lastMsg.images = imageBase64s;
+                    }
 
-                    const res = await fetch(`${activeEndpoint.url}/api/generate`, {
+                    const res = await fetch(`${activeEndpoint.url}/api/chat`, {
                         method: 'POST',
                         signal: currentAbortController.signal,
                         headers: { 'Content-Type': 'application/json' },
@@ -1904,17 +1940,13 @@
                         if (!line.trim()) continue;
                         try {
                             const chunk = JSON.parse(line);
-                            if (chunk.response) tokenQueue += chunk.response;
+                            if (chunk.message?.content) tokenQueue += chunk.message.content;
                             if (chunk.done) break;
                         } catch { /* skip malformed lines */ }
                     }
 
                 } else if (activeEndpoint.type === 'openai') {
-                    // OpenAI local: SSE stream
-                    const msgs = [];
-                    if (customSystemPrompt && customSystemPrompt.trim()) msgs.push({ role: 'system', content: customSystemPrompt.trim() });
-                    msgs.push({ role: 'user', content: openaiContentParts ?? modelInputText });
-
+                    // OpenAI local: SSE stream with full conversation history
                     const openaiHeaders = { 'Content-Type': 'application/json' };
                     if (activeEndpoint.key) openaiHeaders['Authorization'] = `Bearer ${activeEndpoint.key}`;
 
@@ -1922,7 +1954,7 @@
                         method: 'POST',
                         signal: currentAbortController.signal,
                         headers: openaiHeaders,
-                        body: JSON.stringify({ model: activeEndpoint.model, messages: msgs, stream: true })
+                        body: JSON.stringify({ model: activeEndpoint.model, messages: conversationHistory, stream: true })
                     });
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
@@ -1938,22 +1970,18 @@
                     }
 
                 } else if (activeEndpoint.type === 'custom') {
-                    // Custom OpenAI-compatible endpoint: SSE stream
+                    // Custom OpenAI-compatible endpoint: SSE stream with full conversation history
                     const rawUrl = (activeEndpoint.url || '').replace(/\/+$/, '');
                     const chatUrl = `${rawUrl}/chat/completions`;
 
                     const customHeaders = { 'Content-Type': 'application/json' };
                     if (activeEndpoint.key) customHeaders['Authorization'] = `Bearer ${activeEndpoint.key}`;
 
-                    const msgs = [];
-                    if (customSystemPrompt && customSystemPrompt.trim()) msgs.push({ role: 'system', content: customSystemPrompt.trim() });
-                    msgs.push({ role: 'user', content: openaiContentParts ?? modelInputText });
-
                     const res = await fetch(chatUrl, {
                         method: 'POST',
                         signal: currentAbortController.signal,
                         headers: customHeaders,
-                        body: JSON.stringify({ model: activeEndpoint.model, messages: msgs, stream: true })
+                        body: JSON.stringify({ model: activeEndpoint.model, messages: conversationHistory, stream: true })
                     });
                     if (!res.ok) {
                         const errText = await res.text();
