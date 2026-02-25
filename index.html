@@ -234,23 +234,15 @@
             user-select: text;
         }
 
-        /* Custom Scrollbar for a sleek look */
+        /* Hide all scrollbars while keeping scroll functionality */
+        * {
+            scrollbar-width: none;
+            /* Firefox */
+        }
+
         ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #555;
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #777;
+            display: none;
+            /* Chrome, Safari, Edge */
         }
 
         .typing-indicator span {
