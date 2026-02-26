@@ -1450,6 +1450,11 @@
                             <i class="fa-solid fa-plus text-lg"></i>
                         </button>
 
+                        <button type="button" id="search-mode-btn" onclick="toggleSearchMode()" title="Search Mode"
+                            class="p-2 ml-1 mb-1.5 text-gpt-muted hover:text-gpt-text hover:bg-gpt-border rounded-full transition-all h-[36px] w-[36px] flex items-center justify-center flex-shrink-0 cursor-pointer">
+                            <i class="fa-solid fa-globe text-lg"></i>
+                        </button>
+
                         <textarea id="message-input" data-i18n="message_input"
                             class="w-full max-h-[200px] bg-transparent text-gpt-text border-none focus:ring-0 resize-none pt-3 pb-3 px-3 outline-none selectable my-0.5 text-[15px]"
                             placeholder="Ask anything" rows="1" style="min-height: 48px;"
@@ -1965,6 +1970,21 @@
         }
         let isGenerating = false;
         let currentAbortController = null;
+        let isSearchMode = false;
+
+        function toggleSearchMode() {
+            isSearchMode = !isSearchMode;
+            const btn = document.getElementById('search-mode-btn');
+            if (btn) {
+                if (isSearchMode) {
+                    btn.classList.add('text-blue-500', 'bg-gpt-border');
+                    btn.classList.remove('text-gpt-muted');
+                } else {
+                    btn.classList.remove('text-blue-500', 'bg-gpt-border');
+                    btn.classList.add('text-gpt-muted');
+                }
+            }
+        }
 
         // ── Click-outside / Escape to close any modal ──────────────────────────────
         const MODAL_CLOSE_FNS = {
@@ -2584,6 +2604,77 @@
             // Uses modelApiText (clean: user text + text file contents, NO image placeholders)
             // Images travel separately via openaiContentParts / imageBase64s
             let modelInputText = modelApiText;
+
+            // -------- Search Mode --------
+            if (isSearchMode && text && text.trim().length > 0) {
+                try {
+                    // Update the last user message in the chat UI to show a searching indicator
+                    const chatMsgs = document.getElementById('chat-messages');
+                    const searchStatusDiv = document.createElement('div');
+                    searchStatusDiv.className = 'w-full py-2 flex items-center gap-2 text-sm text-gpt-muted opacity-80 pl-4 selectable';
+                    searchStatusDiv.innerHTML = `<i class="fa-solid fa-globe fa-spin"></i><span>Searching the web...</span>`;
+                    if (chatMsgs) chatMsgs.appendChild(searchStatusDiv);
+
+                    let searchResults = [];
+                    // DuckDuckGo via AllOrigins proxy
+                    try {
+                        const ddgUrl = 'https://html.duckduckgo.com/html/?q=' + encodeURIComponent(text);
+                        // disableCache=true completely bypasses any allorigins cached results, avoiding old date searches
+                        const proxyUrl = 'https://api.allorigins.win/get?disableCache=true&url=' + encodeURIComponent(ddgUrl) + '&_=' + Date.now();
+                        const ddgRes = await fetch(proxyUrl);
+                        const ddgData = await ddgRes.json();
+                        if (ddgData && ddgData.contents) {
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(ddgData.contents, 'text/html');
+                            const resultNodes = doc.querySelectorAll('.result__body');
+                            for (let i = 0; i < Math.min(resultNodes.length, 3); i++) {
+                                const titleEl = resultNodes[i].querySelector('.result__title');
+                                const snippetEl = resultNodes[i].querySelector('.result__snippet');
+                                const titleText = titleEl ? titleEl.innerText.trim() : 'Unknown';
+                                const snippetText = snippetEl ? snippetEl.innerText.trim() : resultNodes[i].innerText.replace(/\s+/g, ' ').trim();
+                                if (titleText && titleText !== 'Unknown') {
+                                    searchResults.push(`Source: ${titleText}\nContent: ${snippetText}`);
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('DDG search failed:', e);
+                    }
+
+                    // Wikipedia fallback or complement
+                    if (searchResults.length < 3) {
+                        try {
+                            const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&origin=*&format=json&srsearch=${encodeURIComponent(text)}`;
+                            const wikiRes = await fetch(wikiUrl);
+                            const wikiData = await wikiRes.json();
+                            if (wikiData.query && wikiData.query.search) {
+                                for (let i = 0; i < Math.min(wikiData.query.search.length, 3); i++) {
+                                    const item = wikiData.query.search[i];
+                                    const snippet = item.snippet.replace(/<[^>]+>/g, ' '); // strip simple html
+                                    searchResults.push(`Source: Wikipedia - ${item.title}\nContent: ${snippet}`);
+                                }
+                            }
+                        } catch (e) {
+                            console.warn('Wiki search failed:', e);
+                        }
+                    }
+
+                    if (searchStatusDiv) searchStatusDiv.remove();
+
+                    // Ground the AI in current time, since temporal dependencies break without explicit date knowledge
+                    const currentDateTime = new Date().toLocaleString() + ' ' + navigator.language;
+                    const searchContext = searchResults.length > 0
+                        ? `[Real-Time Internet Search Results]\n${searchResults.join('\n\n')}`
+                        : `[No robust search results returned. Prioritize internal knowledge.]`;
+
+                    modelInputText = `[System Information: The current date and time is ${currentDateTime}]\n\n${searchContext}\n\n[User Query]\n${modelInputText}`;
+
+                } catch (err) {
+                    console.error('Search Mode error:', err);
+                }
+            }
+            // -----------------------------
+
             const currentLang = localStorage.getItem('gpt_local_language') || 'en-US';
 
             // Build the OpenAI multipart content array for vision-capable endpoints.
