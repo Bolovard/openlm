@@ -1196,6 +1196,89 @@
             border: none !important;
         }
 
+        /* ── Responsive adjustments for phones and Chromebooks ─────── */
+        @media (max-width: 768px) {
+
+            .settings-modal-card,
+            .notes-modal-card {
+                flex-direction: column;
+                height: 95vh;
+                max-height: none;
+                max-width: 95vw;
+                border-radius: 12px;
+            }
+
+            .settings-nav {
+                width: 100%;
+                flex-shrink: 0;
+                flex-direction: row;
+                overflow-x: auto;
+                padding: 10px;
+                gap: 8px;
+                border-right: none;
+                border-bottom: 1px solid var(--gpt-border);
+            }
+
+            .settings-tab {
+                width: auto;
+                white-space: nowrap;
+                justify-content: center;
+                padding: 8px 16px;
+            }
+
+            .settings-content {
+                padding: 16px;
+                border-left: none;
+                flex: 1;
+            }
+
+            .settings-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .settings-select {
+                width: 100%;
+                min-width: unset;
+            }
+
+            .notes-sidebar {
+                width: 100%;
+                height: auto;
+                max-height: 200px;
+                border-right: none;
+                border-bottom: 1px solid var(--gpt-border);
+                flex-shrink: 0;
+            }
+
+            #sidebar {
+                position: absolute;
+                top: 0;
+                left: 0;
+                height: 100%;
+                z-index: 50;
+                box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+                transform: translateX(-100%);
+                display: flex !important;
+            }
+
+            #sidebar.open {
+                transform: translateX(0);
+                margin-left: 0 !important;
+            }
+
+            #model-dropdown {
+                position: fixed;
+                top: 60px;
+                left: 10px;
+                right: 10px;
+                width: auto;
+                max-width: none;
+                max-height: calc(100vh - 80px);
+            }
+        }
+
         /* ── End Notes Modal ────────────────────────────────────────── */
     </style>
 </head>
@@ -1284,7 +1367,7 @@
             class="h-14 flex items-center justify-between px-4 sticky top-0 z-10 bg-gpt-main/90 backdrop-blur-sm transition-all">
             <div class="flex items-center gap-2">
                 <div class="flex items-center gap-1">
-                    <button
+                    <button onclick="toggleSidebar()"
                         class="md:hidden text-gpt-text hover:text-gpt-text w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gpt-hover transition-colors">
                         <i class="fa-solid fa-bars text-xl"></i>
                     </button>
@@ -1316,10 +1399,11 @@
 
                     <!-- Model Dropdown -->
                     <div id="model-dropdown"
-                        class="hidden absolute top-full left-0 mt-2 w-72 bg-gpt-input border border-gpt-border rounded-xl shadow-2xl p-2 z-50">
-                        <div class="text-xs font-semibold text-gpt-muted mb-2 px-2 uppercase tracking-wider">Detected
+                        class="hidden absolute top-full left-0 mt-2 w-72 max-h-[70vh] flex flex-col bg-gpt-input border border-gpt-border rounded-xl shadow-2xl p-2 z-50">
+                        <div class="text-xs font-semibold text-gpt-muted mb-2 px-2 shrink-0 uppercase tracking-wider">
+                            Detected
                             Engines</div>
-                        <div id="model-list-container">
+                        <div id="model-list-container" class="overflow-y-auto min-h-0">
                             <!-- Populated via JS -->
                         </div>
                     </div>
@@ -1586,11 +1670,11 @@
         <div id="add-model-modal"
             class="hidden fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm items-center justify-center p-4"
             data-modal-close="closeAddModelModal">
-            <div class="bg-gpt-sidebar border border-gpt-border rounded-2xl w-full max-w-[460px] shadow-2xl overflow-hidden text-gpt-text"
+            <div class="bg-gpt-sidebar border border-gpt-border rounded-2xl w-full max-w-[460px] max-h-[95vh] flex flex-col shadow-2xl overflow-hidden text-gpt-text"
                 onclick="event.stopPropagation()">
 
                 <!-- Modal Header -->
-                <div class="flex justify-between items-center px-6 pt-6 pb-4">
+                <div class="flex justify-between items-center px-6 pt-6 pb-4 shrink-0">
                     <div>
                         <h3 id="modal-title" class="font-semibold text-[18px]">Configure Custom Model</h3>
                         <p id="modal-subtitle" class="text-xs text-gpt-muted mt-0.5">Add a local or cloud-hosted AI
@@ -1603,7 +1687,7 @@
                 </div>
 
                 <!-- Type Toggle -->
-                <div class="px-6 pb-4">
+                <div class="px-6 pb-4 shrink-0">
                     <div class="model-type-toggle" id="model-type-toggle">
                         <button id="toggle-local" class="active" onclick="setModelType('local')">
                             <i class="fa-solid fa-server mr-1.5 text-xs"></i>Local
@@ -1616,10 +1700,10 @@
                         machine or network.</p>
                 </div>
 
-                <div class="border-t border-gpt-border"></div>
+                <div class="border-t border-gpt-border shrink-0"></div>
 
                 <!-- Form Fields -->
-                <div class="space-y-4 px-6 pt-5 pb-2 text-[14px]">
+                <div class="space-y-4 px-6 pt-5 pb-2 text-[14px] overflow-y-auto min-h-0">
                     <div>
                         <label class="block text-sm font-medium mb-1">Display Name</label>
                         <input type="text" id="custom-model-name" placeholder="e.g. My Local Llama"
@@ -1663,6 +1747,10 @@
                             <button type="button" onclick="fillProvider('together')"
                                 class="provider-chip text-xs px-2.5 py-1 rounded-full border border-gpt-border bg-gpt-input hover:bg-gpt-hover transition-colors text-gpt-text">Together
                                 AI</button>
+                            <button type="button" onclick="fillProvider('huggingface')"
+                                class="provider-chip text-xs px-2.5 py-1 rounded-full border border-gpt-border bg-gpt-input hover:bg-gpt-hover transition-colors text-gpt-text">HuggingFace</button>
+                            <button type="button" onclick="fillProvider('zai')"
+                                class="provider-chip text-xs px-2.5 py-1 rounded-full border border-gpt-border bg-gpt-input hover:bg-gpt-hover transition-colors text-gpt-text">Z.ai</button>
                         </div>
                         <!-- Local quick-fill chips -->
                         <div id="local-presets" class="flex flex-wrap gap-1.5 mb-2">
@@ -1699,7 +1787,7 @@
                 </div>
 
                 <!-- Actions -->
-                <div class="flex justify-end gap-3 px-6 py-5">
+                <div class="flex justify-end gap-3 px-6 py-5 shrink-0 border-t border-gpt-border">
                     <button onclick="closeAddModelModal()"
                         class="px-4 py-2 rounded-lg border border-gpt-border font-medium text-sm hover:bg-gpt-hover transition-colors">Cancel</button>
                     <button onclick="saveCustomModel()" id="save-model-btn"
@@ -2025,16 +2113,21 @@
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const hitbox = document.getElementById('sidebar-hitbox');
-            sidebar.classList.toggle('-ml-[260px]');
-            hitbox.classList.toggle('hidden');
 
-            const deskControls = document.getElementById('desktop-sidebar-controls');
-            if (sidebar.classList.contains('-ml-[260px]')) {
-                deskControls.classList.remove('w-0', 'opacity-0');
-                deskControls.classList.add('w-[84px]', 'opacity-100');
+            if (window.innerWidth < 768) {
+                sidebar.classList.toggle('open');
             } else {
-                deskControls.classList.add('w-0', 'opacity-0');
-                deskControls.classList.remove('w-[84px]', 'opacity-100');
+                sidebar.classList.toggle('-ml-[260px]');
+                hitbox.classList.toggle('hidden');
+
+                const deskControls = document.getElementById('desktop-sidebar-controls');
+                if (sidebar.classList.contains('-ml-[260px]')) {
+                    deskControls.classList.remove('w-0', 'opacity-0');
+                    deskControls.classList.add('w-[84px]', 'opacity-100');
+                } else {
+                    deskControls.classList.add('w-0', 'opacity-0');
+                    deskControls.classList.remove('w-[84px]', 'opacity-100');
+                }
             }
         }
 
@@ -3047,6 +3140,8 @@
             groq: { url: 'https://api.groq.com/openai/v1', model: 'llama3-8b-8192', name: 'Groq' },
             anthropic: { url: 'https://api.anthropic.com/v1', model: 'claude-3-5-sonnet-20241022', name: 'Anthropic' },
             together: { url: 'https://api.together.xyz/v1', model: 'meta-llama/Llama-3-8b-chat-hf', name: 'Together AI' },
+            huggingface: { url: 'https://router.huggingface.co/v1', model: '', name: 'HuggingFace' },
+            zai: { url: 'https://api.z/api/pass/v4', model: '', name: 'Z.ai' },
             // Local
             ollama: { url: 'http://localhost:11434/v1', model: 'llama3', name: 'Ollama' },
             lmstudio: { url: 'http://localhost:1234/v1', model: 'local-model', name: 'LM Studio' },
@@ -3064,9 +3159,7 @@
             picker.classList.add('hidden');
             picker.innerHTML = '';
             document.getElementById('model-fetch-status').classList.add('hidden');
-            if (!document.getElementById('custom-model-name').value) {
-                document.getElementById('custom-model-name').value = preset.name;
-            }
+            // Display Name is no longer pre-filled per user request
             // Highlight active chip
             document.querySelectorAll('.provider-chip').forEach(c => {
                 c.classList.remove('!bg-gpt-accent', '!text-white', '!border-gpt-accent');
