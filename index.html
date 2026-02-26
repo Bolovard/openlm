@@ -1703,7 +1703,15 @@
         let currentChatId = null;
         let detectedEndpoints = [];
         let customModels = JSON.parse(localStorage.getItem('localgpt_custom_models')) || [];
-        let activeEndpoint = null;
+        let activeEndpoint = JSON.parse(localStorage.getItem('localgpt_active_endpoint')) || null;
+
+        function saveActiveEndpoint() {
+            if (activeEndpoint) {
+                localStorage.setItem('localgpt_active_endpoint', JSON.stringify(activeEndpoint));
+            } else {
+                localStorage.removeItem('localgpt_active_endpoint');
+            }
+        }
         let isGenerating = false;
         let currentAbortController = null;
 
@@ -2157,6 +2165,9 @@
                     });
                 }
             }
+
+            // Persist the active selection
+            saveActiveEndpoint();
 
             // ADD MODEL BUTTON
             const addBtn = document.createElement('button');
@@ -3161,6 +3172,7 @@
             // If we were editing the currently active model, refresh activeEndpoint
             if (editingModelName && activeEndpoint && activeEndpoint.name === editingModelName) {
                 activeEndpoint = { url, type: 'custom', model: modelId, name, key: key || null, modelType: currentModelType };
+                saveActiveEndpoint();
             }
 
             editingModelName = null;
