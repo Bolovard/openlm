@@ -1583,20 +1583,29 @@
                             <div class="notes-toolbar-divider"></div>
                             <div class="flex items-center gap-1" title="Text Color">
                                 <i class="fa-solid fa-palette text-xs text-gpt-muted"></i>
-                                <input type="color" class="notes-toolbar-color"
+                                <input type="color" class="notes-toolbar-color" id="note-text-color"
                                     onchange="execNoteCmd('foreColor', this.value)" value="#ffffff">
+                                <button
+                                    onclick="execNoteCmd('foreColor', ''); document.getElementById('note-text-color').value='#ffffff';"
+                                    class="notes-toolbar-btn px-1" title="Reset Text Color"><i
+                                        class="fa-solid fa-rotate-left text-[10px]"></i></button>
                             </div>
                             <div class="flex items-center gap-1 ml-1" title="Highlight">
                                 <i class="fa-solid fa-highlighter text-xs text-gpt-muted"></i>
-                                <input type="color" class="notes-toolbar-color"
-                                    onchange="execNoteCmd('hiliteColor', this.value)" value="#2b2b2b">
+                                <input type="color" class="notes-toolbar-color" id="note-bg-color"
+                                    onchange="execNoteCmd('hiliteColor', this.value)" value="#000000">
+                                <button
+                                    onclick="execNoteCmd('hiliteColor', 'transparent'); document.getElementById('note-bg-color').value='#000000';"
+                                    class="notes-toolbar-btn px-1" title="Reset Highlight"><i
+                                        class="fa-solid fa-rotate-left text-[10px]"></i></button>
                             </div>
                             <div class="notes-toolbar-divider"></div>
                             <button onclick="execNoteCmd('removeFormat')" class="notes-toolbar-btn"
                                 title="Clear Formatting"><i class="fa-solid fa-eraser"></i></button>
                         </div>
                         <div id="notes-editor" class="notes-editor" contenteditable="true"
-                            data-placeholder="Start writing..." oninput="handleNoteEditorInput()"></div>
+                            data-placeholder="Start writing..." oninput="handleNoteEditorInput()"
+                            onkeyup="updateNoteToolbar()" onmouseup="updateNoteToolbar()"></div>
                     </div>
                     <div id="notes-empty-state" class="notes-empty-state">
                         <i class="fa-regular fa-note-sticky"></i>
@@ -3516,6 +3525,51 @@
             document.execCommand(command, false, value);
             document.getElementById('notes-editor').focus();
             handleNoteEditorInput();
+            updateNoteToolbar();
+        }
+
+        function updateNoteToolbar() {
+            // Helper to convert rgb to hex for color inputs
+            const rgbToHex = (rgb) => {
+                if (!rgb || rgb === 'transparent' || rgb === 'rgba(0, 0, 0, 0)') return null;
+                if (rgb.startsWith('#')) return rgb;
+                let match = rgb.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+                if (!match) return null;
+                return "#" + match.slice(1).map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
+            };
+
+            const foreColor = document.queryCommandValue('foreColor');
+            document.getElementById('note-text-color').value = rgbToHex(foreColor) || '#ffffff';
+
+            const hiliteColor = document.queryCommandValue('hiliteColor') || document.queryCommandValue('backColor');
+            document.getElementById('note-bg-color').value = rgbToHex(hiliteColor) || '#000000';
+
+            const toggles = ['bold', 'italic', 'underline', 'strikeThrough', 'insertUnorderedList', 'insertOrderedList'];
+            toggles.forEach(cmd => {
+                const btn = document.querySelector(`button[onclick="execNoteCmd('${cmd}')"]`);
+                if (btn) {
+                    if (document.queryCommandState(cmd)) {
+                        btn.style.backgroundColor = 'var(--gpt-border)';
+                    } else {
+                        btn.style.backgroundColor = 'transparent';
+                    }
+                }
+            });
+
+            const formatBlock = document.queryCommandValue('formatBlock');
+            if (formatBlock) {
+                const select = document.querySelector('.notes-toolbar-select');
+                if (select) {
+                    let val = "";
+                    if (formatBlock.toLowerCase() === 'h1') val = "H1";
+                    else if (formatBlock.toLowerCase() === 'h2') val = "H2";
+                    else if (formatBlock.toLowerCase() === 'h3') val = "H3";
+                    else if (formatBlock.toLowerCase() === 'p') val = "P";
+
+                    if (val) select.value = val;
+                    else select.selectedIndex = 0;
+                }
+            }
         }
 
         function handleNoteEditorInput() {
