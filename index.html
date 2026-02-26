@@ -866,6 +866,7 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            min-height: 0;
             display: none;
         }
 
@@ -1202,8 +1203,8 @@
             .settings-modal-card,
             .notes-modal-card {
                 flex-direction: column;
-                height: auto;
-                max-height: 85vh;
+                height: 85vh;
+                max-height: 850px;
                 width: 90vw;
                 max-width: none;
                 border-radius: 16px;
