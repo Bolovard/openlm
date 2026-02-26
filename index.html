@@ -824,6 +824,85 @@
             border: none !important;
         }
 
+        .notes-editor-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            display: none;
+        }
+
+        .notes-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--gpt-border);
+            background: var(--gpt-sidebar);
+            flex-shrink: 0;
+            overflow-x: auto;
+        }
+
+        .notes-toolbar-btn {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--gpt-text);
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 13px;
+        }
+
+        .notes-toolbar-btn:hover {
+            background: var(--gpt-hover);
+        }
+
+        .notes-toolbar-divider {
+            width: 1px;
+            height: 16px;
+            background: var(--gpt-border);
+            margin: 0 4px;
+        }
+
+        .notes-toolbar-select {
+            background: transparent;
+            border: 1px solid var(--gpt-border);
+            color: var(--gpt-text);
+            border-radius: 4px;
+            font-size: 12px;
+            padding: 2px 4px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .notes-toolbar-select option {
+            background: var(--gpt-input);
+            color: var(--gpt-text);
+        }
+
+        .notes-toolbar-color {
+            width: 20px;
+            height: 20px;
+            padding: 0;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            overflow: hidden;
+        }
+
+        .notes-toolbar-color::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+
+        .notes-toolbar-color::-webkit-color-swatch {
+            border: none;
+        }
+
         .notes-editor {
             flex: 1;
             width: 100%;
@@ -833,23 +912,40 @@
             font-size: 14.5px;
             line-height: 1.7;
             color: var(--gpt-text);
-            resize: none;
             outline: none !important;
             box-shadow: none !important;
-            -webkit-appearance: none;
-            appearance: none;
             font-family: inherit;
+            overflow-y: auto;
         }
 
-        .notes-editor:focus {
-            outline: none !important;
-            box-shadow: none !important;
-            border: none !important;
-        }
-
-        .notes-editor::placeholder {
+        .notes-editor:empty:before {
+            content: attr(data-placeholder);
             color: var(--gpt-muted);
             opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .notes-editor ul {
+            list-style-type: disc;
+            padding-left: 20px;
+            margin-bottom: 8px;
+        }
+
+        .notes-editor ol {
+            list-style-type: decimal;
+            padding-left: 20px;
+            margin-bottom: 8px;
+        }
+
+        .notes-editor h1,
+        .notes-editor h2,
+        .notes-editor h3 {
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .notes-editor p {
+            margin-bottom: 8px;
         }
 
         .notes-empty-state {
@@ -1459,8 +1555,49 @@
                             <span class="text-xs text-gpt-muted" id="notes-save-status"></span>
                         </div>
                     </div>
-                    <textarea id="notes-editor" class="notes-editor" style="display:none;"
-                        placeholder="Start writing..." oninput="handleNoteEditorInput()"></textarea>
+                    <div id="notes-editor-container" class="notes-editor-container">
+                        <div class="notes-toolbar" id="notes-toolbar">
+                            <select class="notes-toolbar-select"
+                                onchange="execNoteCmd('formatBlock', this.value); this.selectedIndex=0;"
+                                title="Text Format">
+                                <option value="" disabled selected>Format</option>
+                                <option value="H1">Heading 1</option>
+                                <option value="H2">Heading 2</option>
+                                <option value="H3">Heading 3</option>
+                                <option value="P">Paragraph</option>
+                            </select>
+                            <div class="notes-toolbar-divider"></div>
+                            <button onclick="execNoteCmd('bold')" class="notes-toolbar-btn" title="Bold"><i
+                                    class="fa-solid fa-bold"></i></button>
+                            <button onclick="execNoteCmd('italic')" class="notes-toolbar-btn" title="Italic"><i
+                                    class="fa-solid fa-italic"></i></button>
+                            <button onclick="execNoteCmd('underline')" class="notes-toolbar-btn" title="Underline"><i
+                                    class="fa-solid fa-underline"></i></button>
+                            <button onclick="execNoteCmd('strikeThrough')" class="notes-toolbar-btn"
+                                title="Strikethrough"><i class="fa-solid fa-strikethrough"></i></button>
+                            <div class="notes-toolbar-divider"></div>
+                            <button onclick="execNoteCmd('insertUnorderedList')" class="notes-toolbar-btn"
+                                title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
+                            <button onclick="execNoteCmd('insertOrderedList')" class="notes-toolbar-btn"
+                                title="Numbered List"><i class="fa-solid fa-list-ol"></i></button>
+                            <div class="notes-toolbar-divider"></div>
+                            <div class="flex items-center gap-1" title="Text Color">
+                                <i class="fa-solid fa-palette text-xs text-gpt-muted"></i>
+                                <input type="color" class="notes-toolbar-color"
+                                    onchange="execNoteCmd('foreColor', this.value)" value="#ffffff">
+                            </div>
+                            <div class="flex items-center gap-1 ml-1" title="Highlight">
+                                <i class="fa-solid fa-highlighter text-xs text-gpt-muted"></i>
+                                <input type="color" class="notes-toolbar-color"
+                                    onchange="execNoteCmd('hiliteColor', this.value)" value="#2b2b2b">
+                            </div>
+                            <div class="notes-toolbar-divider"></div>
+                            <button onclick="execNoteCmd('removeFormat')" class="notes-toolbar-btn"
+                                title="Clear Formatting"><i class="fa-solid fa-eraser"></i></button>
+                        </div>
+                        <div id="notes-editor" class="notes-editor" contenteditable="true"
+                            data-placeholder="Start writing..." oninput="handleNoteEditorInput()"></div>
+                    </div>
                     <div id="notes-empty-state" class="notes-empty-state">
                         <i class="fa-regular fa-note-sticky"></i>
                         <p>Select a note or create a new one to get started.</p>
@@ -3354,10 +3491,10 @@
             // Show editor, hide empty state
             document.getElementById('notes-empty-state').style.display = 'none';
             document.getElementById('notes-content-header').style.display = 'flex';
-            document.getElementById('notes-editor').style.display = 'block';
+            document.getElementById('notes-editor-container').style.display = 'flex';
 
             document.getElementById('notes-active-title').textContent = note.title;
-            document.getElementById('notes-editor').value = note.content;
+            document.getElementById('notes-editor').innerHTML = note.content || '';
             document.getElementById('notes-save-status').textContent = '';
 
             // Update active state in list
@@ -3370,7 +3507,15 @@
             activeNoteId = null;
             document.getElementById('notes-empty-state').style.display = 'flex';
             document.getElementById('notes-content-header').style.display = 'none';
-            document.getElementById('notes-editor').style.display = 'none';
+
+            const editorContainer = document.getElementById('notes-editor-container');
+            if (editorContainer) editorContainer.style.display = 'none';
+        }
+
+        function execNoteCmd(command, value = null) {
+            document.execCommand(command, false, value);
+            document.getElementById('notes-editor').focus();
+            handleNoteEditorInput();
         }
 
         function handleNoteEditorInput() {
@@ -3378,7 +3523,7 @@
             const note = notes.find(n => n.id === activeNoteId);
             if (!note) return;
 
-            note.content = document.getElementById('notes-editor').value;
+            note.content = document.getElementById('notes-editor').innerHTML;
             note.updatedAt = Date.now();
 
             // Debounced save with status indicator
