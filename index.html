@@ -872,64 +872,173 @@
         .notes-toolbar {
             display: flex;
             align-items: center;
-            gap: 4px;
-            padding: 8px 16px;
+            gap: 3px;
+            padding: 8px 14px;
             border-bottom: 1px solid var(--gpt-border);
             background: var(--gpt-sidebar);
             flex-shrink: 0;
-            overflow-x: auto;
+            overflow: visible;
+            flex-wrap: wrap;
+            position: relative;
+        }
+
+        .notes-toolbar::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.03), transparent);
+            pointer-events: none;
+        }
+
+        .dark .notes-toolbar::after {
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.12), transparent);
+        }
+
+        .notes-toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            padding: 2px;
+            border-radius: 10px;
+            background: rgba(128, 128, 128, 0.06);
+        }
+
+        .dark .notes-toolbar-group {
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .notes-color-picker-wrap {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 4px;
+            border-radius: 8px;
+            transition: background 0.15s;
+        }
+
+        .notes-color-picker-wrap:hover {
+            background: var(--gpt-hover);
+        }
+
+        .notes-toolbar-btn-sm {
+            width: 22px !important;
+            height: 22px !important;
+            font-size: 10px !important;
         }
 
         .notes-toolbar-btn {
-            width: 28px;
-            height: 28px;
+            width: 30px;
+            height: 30px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 6px;
+            border-radius: 8px;
             background: transparent;
-            color: var(--gpt-text);
+            color: var(--gpt-muted);
             border: none;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
             font-size: 13px;
+            position: relative;
         }
 
         .notes-toolbar-btn:hover {
             background: var(--gpt-hover);
+            color: var(--gpt-text);
+            transform: translateY(-1px);
         }
+
+        .notes-toolbar-btn:active {
+            transform: translateY(0) scale(0.93);
+        }
+
+
 
         .notes-toolbar-divider {
             width: 1px;
-            height: 16px;
+            height: 18px;
             background: var(--gpt-border);
-            margin: 0 4px;
+            margin: 0 6px;
+            opacity: 0.6;
+            border-radius: 1px;
         }
 
-        .notes-toolbar-select {
-            background: transparent;
-            border: 1px solid var(--gpt-border);
-            color: var(--gpt-text);
-            border-radius: 4px;
-            font-size: 12px;
-            padding: 2px 4px;
-            outline: none;
-            cursor: pointer;
-        }
-
-        .notes-toolbar-select option {
+        .notes-textsize-select {
             background: var(--gpt-input);
+            border: none;
+            border-radius: 9999px;
+            padding: 0 12px;
+            height: 30px;
+            font-size: 13px;
+            font-weight: 500;
             color: var(--gpt-text);
+            cursor: pointer;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+            transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-width: 105px;
+            gap: 8px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .notes-textsize-select:hover {
+            background-color: var(--gpt-hover);
+        }
+
+        .notes-textsize-select:focus {
+            outline: none;
+        }
+
+        .notes-textsize-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 4px;
+            background: var(--gpt-input);
+            border: 1px solid var(--gpt-border);
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+            font-size: 13px;
+            color: var(--gpt-text);
+            overflow: hidden;
+            z-index: 1000;
+            padding: 4px;
+            min-width: 130px;
+        }
+
+        .notes-textsize-dropdown-item {
+            padding: 7px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.15s;
+            white-space: nowrap;
+        }
+
+        .notes-textsize-dropdown-item:hover {
+            background: var(--gpt-border);
         }
 
         .notes-toolbar-color {
-            width: 20px;
-            height: 20px;
+            width: 22px;
+            height: 22px;
             padding: 0;
-            border: none;
-            border-radius: 4px;
+            border: 2px solid var(--gpt-border);
+            border-radius: 6px;
             cursor: pointer;
             overflow: hidden;
+            transition: all 0.18s ease;
+        }
+
+        .notes-toolbar-color:hover {
+            border-color: var(--gpt-muted);
+            transform: scale(1.1);
         }
 
         .notes-toolbar-color::-webkit-color-swatch-wrapper {
@@ -938,6 +1047,7 @@
 
         .notes-toolbar-color::-webkit-color-swatch {
             border: none;
+            border-radius: 3px;
         }
 
         .notes-editor {
@@ -992,29 +1102,45 @@
             align-items: center;
             justify-content: center;
             color: var(--gpt-muted);
-            gap: 12px;
+            gap: 16px;
             padding: 40px;
             text-align: center;
         }
 
         .notes-empty-state i {
-            font-size: 36px;
-            opacity: 0.35;
+            font-size: 40px;
+            opacity: 0.25;
+            animation: emptyNotePulse 3s ease-in-out infinite;
+        }
+
+        @keyframes emptyNotePulse {
+
+            0%,
+            100% {
+                opacity: 0.25;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.4;
+                transform: scale(1.05);
+            }
         }
 
         .notes-empty-state p {
-            font-size: 14px;
+            font-size: 13.5px;
             max-width: 240px;
-            line-height: 1.5;
+            line-height: 1.6;
+            opacity: 0.7;
         }
 
         .notes-new-icon-btn {
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 28px;
-            height: 28px;
-            border-radius: 6px;
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
             background: transparent;
             color: var(--gpt-muted);
             border: none;
@@ -1025,10 +1151,11 @@
         .notes-new-icon-btn:hover {
             color: var(--gpt-text);
             background: var(--gpt-hover);
+            transform: translateY(-1px);
         }
 
         .notes-new-icon-btn:active {
-            transform: scale(0.95);
+            transform: translateY(0) scale(0.92);
         }
 
         .notes-new-icon-btn i {
@@ -1600,7 +1727,7 @@
                 <!-- Notes Left Sidebar -->
                 <div class="notes-sidebar">
                     <div class="notes-sidebar-header">
-                        <h3><i class="fa-regular fa-note-sticky"></i> Notes</h3>
+                        <h3><i class="fa-solid fa-book"></i> Notes</h3>
                         <button onclick="createNewNote()" class="notes-new-icon-btn" title="New note">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </button>
@@ -1621,58 +1748,80 @@
                     </div>
                     <div id="notes-editor-container" class="notes-editor-container">
                         <div class="notes-toolbar" id="notes-toolbar">
-                            <select class="notes-toolbar-select"
-                                onchange="execNoteCmd('formatBlock', this.value); this.selectedIndex=0;"
-                                title="Text Format">
-                                <option value="" disabled selected>Format</option>
-                                <option value="H1">Heading 1</option>
-                                <option value="H2">Heading 2</option>
-                                <option value="H3">Heading 3</option>
-                                <option value="P">Paragraph</option>
-                            </select>
-                            <div class="notes-toolbar-divider"></div>
-                            <button onclick="execNoteCmd('bold')" class="notes-toolbar-btn" title="Bold"><i
-                                    class="fa-solid fa-bold"></i></button>
-                            <button onclick="execNoteCmd('italic')" class="notes-toolbar-btn" title="Italic"><i
-                                    class="fa-solid fa-italic"></i></button>
-                            <button onclick="execNoteCmd('underline')" class="notes-toolbar-btn" title="Underline"><i
-                                    class="fa-solid fa-underline"></i></button>
-                            <button onclick="execNoteCmd('strikeThrough')" class="notes-toolbar-btn"
-                                title="Strikethrough"><i class="fa-solid fa-strikethrough"></i></button>
-                            <div class="notes-toolbar-divider"></div>
-                            <button onclick="execNoteCmd('insertUnorderedList')" class="notes-toolbar-btn"
-                                title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
-                            <button onclick="execNoteCmd('insertOrderedList')" class="notes-toolbar-btn"
-                                title="Numbered List"><i class="fa-solid fa-list-ol"></i></button>
-                            <div class="notes-toolbar-divider"></div>
-                            <div class="flex items-center gap-1" title="Text Color">
-                                <i class="fa-solid fa-palette text-xs text-gpt-muted"></i>
-                                <input type="color" class="notes-toolbar-color" id="note-text-color"
-                                    onchange="execNoteCmd('foreColor', this.value)" value="#ffffff">
-                                <button
-                                    onclick="execNoteCmd('foreColor', ''); document.getElementById('note-text-color').value='#ffffff';"
-                                    class="notes-toolbar-btn px-1" title="Reset Text Color"><i
-                                        class="fa-solid fa-rotate-left text-[10px]"></i></button>
-                            </div>
-                            <div class="flex items-center gap-1 ml-1" title="Highlight">
-                                <i class="fa-solid fa-highlighter text-xs text-gpt-muted"></i>
-                                <input type="color" class="notes-toolbar-color" id="note-bg-color"
-                                    onchange="execNoteCmd('hiliteColor', this.value)" value="#000000">
-                                <button
-                                    onclick="execNoteCmd('hiliteColor', 'transparent'); document.getElementById('note-bg-color').value='#000000';"
-                                    class="notes-toolbar-btn px-1" title="Reset Highlight"><i
-                                        class="fa-solid fa-rotate-left text-[10px]"></i></button>
+                            <!-- Text Size dropdown -->
+                            <div class="relative">
+                                <button type="button" class="notes-textsize-select"
+                                    onclick="toggleNoteTextSizeDropdown(event)">
+                                    <span id="note-textsize-display">Text Size</span>
+                                    <i id="note-textsize-arrow"
+                                        class="fa-solid fa-chevron-down text-gpt-muted text-[10px] transition-transform duration-200 ml-2"></i>
+                                </button>
+                                <div id="note-textsize-dropdown" class="notes-textsize-dropdown hidden">
+                                    <div class="notes-textsize-dropdown-item"
+                                        onclick="selectNoteTextSize('H1', 'Heading 1')">Heading 1</div>
+                                    <div class="notes-textsize-dropdown-item"
+                                        onclick="selectNoteTextSize('H2', 'Heading 2')">Heading 2</div>
+                                    <div class="notes-textsize-dropdown-item"
+                                        onclick="selectNoteTextSize('H3', 'Heading 3')">Heading 3</div>
+                                    <div class="notes-textsize-dropdown-item"
+                                        onclick="selectNoteTextSize('P', 'Paragraph')">Paragraph</div>
+                                </div>
                             </div>
                             <div class="notes-toolbar-divider"></div>
-                            <button onclick="execNoteCmd('removeFormat')" class="notes-toolbar-btn"
-                                title="Clear Formatting"><i class="fa-solid fa-eraser"></i></button>
+                            <!-- Text style group -->
+                            <div class="notes-toolbar-group">
+                                <button onclick="execNoteCmd('bold')" class="notes-toolbar-btn" title="Bold"><i
+                                        class="fa-solid fa-bold"></i></button>
+                                <button onclick="execNoteCmd('italic')" class="notes-toolbar-btn" title="Italic"><i
+                                        class="fa-solid fa-italic"></i></button>
+                                <button onclick="execNoteCmd('underline')" class="notes-toolbar-btn"
+                                    title="Underline"><i class="fa-solid fa-underline"></i></button>
+                                <button onclick="execNoteCmd('strikeThrough')" class="notes-toolbar-btn"
+                                    title="Strikethrough"><i class="fa-solid fa-strikethrough"></i></button>
+                            </div>
+                            <div class="notes-toolbar-divider"></div>
+                            <!-- List group -->
+                            <div class="notes-toolbar-group">
+                                <button onclick="execNoteCmd('insertUnorderedList')" class="notes-toolbar-btn"
+                                    title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
+                                <button onclick="execNoteCmd('insertOrderedList')" class="notes-toolbar-btn"
+                                    title="Numbered List"><i class="fa-solid fa-list-ol"></i></button>
+                            </div>
+                            <div class="notes-toolbar-divider"></div>
+                            <!-- Color group -->
+                            <div class="notes-toolbar-group">
+                                <div class="notes-color-picker-wrap" title="Text Color">
+                                    <i class="fa-solid fa-font text-[11px] text-gpt-muted"></i>
+                                    <input type="color" class="notes-toolbar-color" id="note-text-color"
+                                        onchange="execNoteCmd('foreColor', this.value)" value="#ffffff">
+                                    <button
+                                        onclick="execNoteCmd('foreColor', ''); document.getElementById('note-text-color').value='#ffffff';"
+                                        class="notes-toolbar-btn notes-toolbar-btn-sm" title="Reset Text Color"><i
+                                            class="fa-solid fa-rotate-left text-[9px]"></i></button>
+                                </div>
+                                <div class="notes-color-picker-wrap" title="Highlight">
+                                    <i class="fa-solid fa-fill-drip text-[11px] text-gpt-muted"></i>
+                                    <input type="color" class="notes-toolbar-color" id="note-bg-color"
+                                        onchange="execNoteCmd('hiliteColor', this.value)" value="#000000">
+                                    <button
+                                        onclick="execNoteCmd('hiliteColor', 'transparent'); document.getElementById('note-bg-color').value='#000000';"
+                                        class="notes-toolbar-btn notes-toolbar-btn-sm" title="Reset Highlight"><i
+                                            class="fa-solid fa-rotate-left text-[9px]"></i></button>
+                                </div>
+                            </div>
+                            <div class="notes-toolbar-divider"></div>
+                            <!-- Clear group -->
+                            <div class="notes-toolbar-group">
+                                <button onclick="execNoteCmd('removeFormat')" class="notes-toolbar-btn"
+                                    title="Clear Formatting"><i class="fa-solid fa-eraser"></i></button>
+                            </div>
                         </div>
                         <div id="notes-editor" class="notes-editor" contenteditable="true"
                             data-placeholder="Start writing..." oninput="handleNoteEditorInput()"
                             onkeyup="updateNoteToolbar()" onmouseup="updateNoteToolbar()"></div>
                     </div>
                     <div id="notes-empty-state" class="notes-empty-state">
-                        <i class="fa-regular fa-note-sticky"></i>
+                        <i class="fa-regular fa-pen-to-square"></i>
                         <p>Select a note or create a new one to get started.</p>
                     </div>
                 </div>
@@ -3693,16 +3842,14 @@
 
             const formatBlock = document.queryCommandValue('formatBlock');
             if (formatBlock) {
-                const select = document.querySelector('.notes-toolbar-select');
-                if (select) {
-                    let val = "";
-                    if (formatBlock.toLowerCase() === 'h1') val = "H1";
-                    else if (formatBlock.toLowerCase() === 'h2') val = "H2";
-                    else if (formatBlock.toLowerCase() === 'h3') val = "H3";
-                    else if (formatBlock.toLowerCase() === 'p') val = "P";
-
-                    if (val) select.value = val;
-                    else select.selectedIndex = 0;
+                const disp = document.getElementById('note-textsize-display');
+                if (disp) {
+                    const fb = formatBlock.toLowerCase();
+                    if (fb === 'h1') disp.textContent = 'Heading 1';
+                    else if (fb === 'h2') disp.textContent = 'Heading 2';
+                    else if (fb === 'h3') disp.textContent = 'Heading 3';
+                    else if (fb === 'p') disp.textContent = 'Paragraph';
+                    else disp.textContent = 'Text Size';
                 }
             }
         }
@@ -3741,7 +3888,7 @@
                 const btn = document.createElement('button');
                 btn.className = 'notes-list-item' + (activeNoteId === note.id ? ' active' : '');
                 btn.dataset.noteId = note.id;
-                btn.innerHTML = `<i class="fa-regular fa-note-sticky"></i><span class="note-title-text">${escapeHtml(note.title)}</span>`;
+                btn.innerHTML = `<i class="fa-regular fa-file-lines"></i><span class="note-title-text">${escapeHtml(note.title)}</span>`;
                 btn.onclick = () => selectNote(note.id);
                 btn.oncontextmenu = (e) => {
                     e.preventDefault();
@@ -3899,6 +4046,43 @@
                 input.select();
             }, 30);
         }
+        // Text Size custom dropdown logic
+        function toggleNoteTextSizeDropdown(event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById('note-textsize-dropdown');
+            const arrow = document.getElementById('note-textsize-arrow');
+            const isHidden = dropdown.classList.contains('hidden');
+
+            if (isHidden) {
+                dropdown.classList.remove('hidden');
+                if (arrow) arrow.style.transform = 'rotate(180deg)';
+            } else {
+                dropdown.classList.add('hidden');
+                if (arrow) arrow.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function selectNoteTextSize(val, text) {
+            execNoteCmd('formatBlock', val);
+            const disp = document.getElementById('note-textsize-display');
+            if (disp) disp.textContent = text;
+
+            // Close the dropdown
+            const dropdown = document.getElementById('note-textsize-dropdown');
+            if (dropdown) dropdown.classList.add('hidden');
+            const arrow = document.getElementById('note-textsize-arrow');
+            if (arrow) arrow.style.transform = 'rotate(0deg)';
+        }
+
+        // Close text-size dropdown on click outside
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.notes-textsize-select')) return;
+            const dropdown = document.getElementById('note-textsize-dropdown');
+            if (dropdown) dropdown.classList.add('hidden');
+            const arrow = document.getElementById('note-textsize-arrow');
+            if (arrow) arrow.style.transform = 'rotate(0deg)';
+        }, true);
+
         // ── End Notes Integration ─────────────────────────────────────────────────
 
 
