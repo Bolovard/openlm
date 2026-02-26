@@ -598,20 +598,56 @@
         }
 
         .settings-select {
-            background: var(--gpt-sidebar);
-            border: 1px solid var(--gpt-border);
-            border-radius: 8px;
-            padding: 5px 10px;
-            font-size: 13px;
+            background: var(--gpt-input);
+            border: none;
+            border-radius: 9999px;
+            padding: 8px 16px;
+            font-size: 13.5px;
+            font-weight: 500;
             color: var(--gpt-text);
             cursor: pointer;
             outline: none;
-            transition: border-color 0.15s;
+            -webkit-appearance: none;
+            appearance: none;
+            transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             flex-shrink: 0;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-width: 140px;
+        }
+
+        .settings-select:hover {
+            background-color: var(--gpt-hover);
         }
 
         .settings-select:focus {
             outline: none;
+        }
+
+        .settings-dropdown {
+            background: var(--gpt-input);
+            border: 1px solid var(--gpt-border);
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+            font-size: 13.5px;
+            color: var(--gpt-text);
+            overflow: hidden;
+            z-index: 1000;
+            padding: 4px;
+        }
+
+        .settings-dropdown-item {
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.15s;
+            white-space: nowrap;
+        }
+
+        .settings-dropdown-item:hover {
+            background: var(--gpt-border);
         }
 
         .settings-textarea {
@@ -1256,25 +1292,52 @@
                 <div id="tab-content-general" class="settings-panel block">
                     <h2 class="settings-panel-title">General</h2>
                     <div class="settings-rows">
-                        <div class="settings-row">
+                        <div class="settings-row relative">
                             <span class="settings-row-label">Appearance</span>
-                            <select id="theme-selector" onchange="setThemeMode(this.value)" class="settings-select">
-                                <option value="system">System</option>
-                                <option value="dark">Dark</option>
-                                <option value="light">Light</option>
-                            </select>
+                            <div class="relative">
+                                <button id="theme-selector-btn" type="button" class="settings-select"
+                                    onclick="toggleSettingsDropdown('theme-dropdown', 'theme-arrow', event)">
+                                    <span id="theme-display">System</span>
+                                    <i id="theme-arrow"
+                                        class="fa-solid fa-chevron-down text-gpt-muted text-[11px] transition-transform duration-200 ml-2"></i>
+                                </button>
+                                <div id="theme-dropdown"
+                                    class="settings-dropdown hidden absolute top-full right-0 mt-1 min-w-[140px]">
+                                    <div class="settings-dropdown-item" onclick="selectThemeOption('system', 'System')">
+                                        System</div>
+                                    <div class="settings-dropdown-item" onclick="selectThemeOption('dark', 'Dark')">Dark
+                                    </div>
+                                    <div class="settings-dropdown-item" onclick="selectThemeOption('light', 'Light')">
+                                        Light</div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="settings-row">
+                        <div class="settings-row relative">
                             <span class="settings-row-label">Language</span>
-                            <select id="language-selector" onchange="setLanguage(this.value)" class="settings-select">
-                                <option value="en-US">English (US)</option>
-                                <option value="en-UK">English (UK)</option>
-                                <option value="es">Español</option>
-                                <option value="fr">Français</option>
-                                <option value="de">Deutsch</option>
-                                <option value="zh">中文</option>
-                                <option value="ja">日本語</option>
-                            </select>
+                            <div class="relative">
+                                <button id="language-selector-btn" type="button" class="settings-select"
+                                    onclick="toggleSettingsDropdown('language-dropdown', 'language-arrow', event)">
+                                    <span id="language-display">English (US)</span>
+                                    <i id="language-arrow"
+                                        class="fa-solid fa-chevron-down text-gpt-muted text-[11px] transition-transform duration-200 ml-2"></i>
+                                </button>
+                                <div id="language-dropdown"
+                                    class="settings-dropdown hidden absolute top-full right-0 mt-1 min-w-[140px]">
+                                    <div class="settings-dropdown-item"
+                                        onclick="selectLangOption('en-US', 'English (US)')">English (US)</div>
+                                    <div class="settings-dropdown-item"
+                                        onclick="selectLangOption('en-UK', 'English (UK)')">English (UK)</div>
+                                    <div class="settings-dropdown-item" onclick="selectLangOption('es', 'Español')">
+                                        Español</div>
+                                    <div class="settings-dropdown-item" onclick="selectLangOption('fr', 'Français')">
+                                        Français</div>
+                                    <div class="settings-dropdown-item" onclick="selectLangOption('de', 'Deutsch')">
+                                        Deutsch</div>
+                                    <div class="settings-dropdown-item" onclick="selectLangOption('zh', '中文')">中文</div>
+                                    <div class="settings-dropdown-item" onclick="selectLangOption('ja', '日本語')">日本語
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -3176,12 +3239,54 @@
             downloadAnchorNode.remove();
         }
 
+        // Custom Dropdown logic
+        function toggleSettingsDropdown(id, arrowId, event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById(id);
+            const isHidden = dropdown.classList.contains('hidden');
+
+            // Close all
+            document.querySelectorAll('.settings-dropdown').forEach(d => d.classList.add('hidden'));
+
+            // Reset all arrows
+            document.getElementById('theme-arrow').style.transform = 'rotate(0deg)';
+            document.getElementById('language-arrow').style.transform = 'rotate(0deg)';
+
+            if (isHidden) {
+                dropdown.classList.remove('hidden');
+                document.getElementById(arrowId).style.transform = 'rotate(180deg)';
+            }
+        }
+
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.settings-select')) return;
+            document.querySelectorAll('.settings-dropdown').forEach(d => d.classList.add('hidden'));
+            const thArrow = document.getElementById('theme-arrow');
+            if (thArrow) thArrow.style.transform = 'rotate(0deg)';
+            const langArrow = document.getElementById('language-arrow');
+            if (langArrow) langArrow.style.transform = 'rotate(0deg)';
+        }, true);
+
+        function selectThemeOption(val, text) {
+            const disp = document.getElementById('theme-display');
+            if (disp) disp.textContent = text;
+            setThemeMode(val);
+        }
+
+        function selectLangOption(val, text) {
+            const disp = document.getElementById('language-display');
+            if (disp) disp.textContent = text;
+            setLanguage(val);
+        }
+
         // Theme Setting logic
         function loadTheme() {
             const savedTheme = localStorage.getItem('gpt_theme_mode') || 'system';
             setThemeMode(savedTheme, false);
-            const select = document.getElementById('theme-selector');
-            if (select) select.value = savedTheme;
+
+            const themes = { 'system': 'System', 'dark': 'Dark', 'light': 'Light' };
+            const disp = document.getElementById('theme-display');
+            if (disp) disp.textContent = themes[savedTheme] || 'System';
         }
 
         function setThemeMode(mode, save = true) {
@@ -3237,8 +3342,9 @@
             // Load saved settings
             const savedLang = localStorage.getItem('gpt_local_language');
             if (savedLang) {
-                const sel = document.getElementById('language-selector');
-                if (sel) sel.value = savedLang;
+                const langs = { 'en-US': 'English (US)', 'en-UK': 'English (UK)', 'es': 'Español', 'fr': 'Français', 'de': 'Deutsch', 'zh': '中文', 'ja': '日本語' };
+                const disp = document.getElementById('language-display');
+                if (disp) disp.textContent = langs[savedLang] || 'English (US)';
             }
 
             const savedPrompt = localStorage.getItem('gpt_local_system_prompt');
