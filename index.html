@@ -302,6 +302,7 @@
             }
         }
 
+
         #input-area {
             transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -2426,10 +2427,24 @@
             // ── Producer/Consumer: AI fills queue instantly; typer drains at reading pace ──
             let tokenQueue = '';    // raw tokens pushed in by the stream producer
             let streamDone = false; // set true when the network stream ends
-            let typedText = '';    // what has actually been rendered character-by-character
+            let typedText = '';     // what has actually been rendered so far
+            let renderDirty = false; // flag: typedText has changed since last render
+            let rafId = 0;           // requestAnimationFrame handle
 
-            // Typer loop — runs concurrently with the stream fetch.
-            // Always uses renderMarkdownAndMath so KaTeX is applied every frame.
+            // Render loop — synced to display refresh rate (60fps) via rAF.
+            // Only re-parses markdown when new characters have been consumed.
+            function renderLoop() {
+                if (renderDirty) {
+                    renderMarkdownAndMath(streamContent, typedText);
+                    scrollToBottom();
+                    renderDirty = false;
+                }
+                rafId = requestAnimationFrame(renderLoop);
+            }
+            rafId = requestAnimationFrame(renderLoop);
+
+            // Typer loop — consumes characters one at a time at a natural pace.
+            // The rAF render loop above picks up the changes at 60fps.
             const typerPromise = (async () => {
                 while (true) {
                     if (!isGenerating) break;
@@ -2442,10 +2457,9 @@
 
                         typedText += tokenQueue[0];
                         tokenQueue = tokenQueue.slice(1);
+                        renderDirty = true;
 
-                        renderMarkdownAndMath(streamContent, typedText);
-                        scrollToBottom();
-                        await new Promise(r => setTimeout(r, 18 + Math.random() * 17));
+                        await new Promise(r => setTimeout(r, 18 + Math.random() * 12));
 
                     } else if (streamDone) {
                         break;
@@ -2453,6 +2467,7 @@
                         await new Promise(r => setTimeout(r, 8));
                     }
                 }
+                cancelAnimationFrame(rafId);
             })();
 
             try {
@@ -2557,7 +2572,9 @@
                     // Stream aborted — let typer drain whatever is already queued, then save
                     streamDone = true;
                     await typerPromise;
+                    cancelAnimationFrame(rafId);
                     aiResponse = typedText;
+                    if (aiResponse) renderMarkdownAndMath(streamContent, aiResponse);
                     if (!aiResponse) streamMsgDiv.remove();
                     if (isGenerating) { isGenerating = false; updateSendButtonState(); }
                     return;
