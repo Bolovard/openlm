@@ -875,33 +875,31 @@
             line-height: 1.5;
         }
 
-        .notes-new-btn {
+        .notes-new-icon-btn {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
-            width: calc(100% - 16px);
-            margin: 0 8px 8px;
-            padding: 8px;
-            border-radius: 10px;
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--gpt-text);
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
             background: transparent;
-            border: 1px dashed var(--gpt-border);
-            cursor: pointer;
-            transition: background 0.15s, border-color 0.15s;
-            flex-shrink: 0;
-        }
-
-        .notes-new-btn:hover {
-            background: var(--gpt-hover);
-            border-color: var(--gpt-muted);
-        }
-
-        .notes-new-btn i {
-            font-size: 11px;
             color: var(--gpt-muted);
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .notes-new-icon-btn:hover {
+            color: var(--gpt-text);
+            background: var(--gpt-hover);
+        }
+
+        .notes-new-icon-btn:active {
+            transform: scale(0.95);
+        }
+
+        .notes-new-icon-btn i {
+            font-size: 14px;
         }
 
         /* Notes context menu */
@@ -1443,13 +1441,13 @@
                 <div class="notes-sidebar">
                     <div class="notes-sidebar-header">
                         <h3><i class="fa-regular fa-note-sticky"></i> Notes</h3>
+                        <button onclick="createNewNote()" class="notes-new-icon-btn" title="New note">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
                     </div>
                     <div class="notes-list" id="notes-list-container">
                         <!-- Populated by JS -->
                     </div>
-                    <button onclick="createNewNote()" class="notes-new-btn">
-                        <i class="fa-solid fa-plus"></i> New note
-                    </button>
                 </div>
 
                 <!-- Notes Content Area -->
