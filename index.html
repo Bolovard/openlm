@@ -2616,16 +2616,45 @@
                     if (chatMsgs) chatMsgs.appendChild(searchStatusDiv);
 
                     let searchResults = [];
-                    // DuckDuckGo via AllOrigins proxy
+                    // DuckDuckGo via multiple fallback proxies
                     try {
-                        const ddgUrl = 'https://html.duckduckgo.com/html/?q=' + encodeURIComponent(text);
-                        // disableCache=true completely bypasses any allorigins cached results, avoiding old date searches
-                        const proxyUrl = 'https://api.allorigins.win/get?disableCache=true&url=' + encodeURIComponent(ddgUrl) + '&_=' + Date.now();
-                        const ddgRes = await fetch(proxyUrl);
-                        const ddgData = await ddgRes.json();
-                        if (ddgData && ddgData.contents) {
+                        // Append timestamp DIRECTLY to duckduckgo URL. This enforces that no proxy can 
+                        // ever serve a cached HTML page, since the target URL is technically unique globally.
+                        const ddgUrl = 'https://html.duckduckgo.com/html/?q=' + encodeURIComponent(text) + '&kl=us-en&t=' + Date.now();
+
+                        const proxyUrls = [
+                            'https://api.allorigins.win/get?disableCache=true&url=' + encodeURIComponent(ddgUrl),
+                            'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(ddgUrl),
+                            'https://corsproxy.io/?' + encodeURIComponent(ddgUrl)
+                        ];
+
+                        let htmlContent = null;
+                        for (const proxyUrl of proxyUrls) {
+                            try {
+                                const fetchOptions = { cache: 'no-store' };
+                                const ddgRes = await fetch(proxyUrl, fetchOptions);
+                                if (!ddgRes.ok) continue;
+
+                                const contentType = ddgRes.headers.get('content-type') || '';
+                                if (contentType.includes('application/json')) {
+                                    const ddgData = await ddgRes.json();
+                                    htmlContent = ddgData.contents;
+                                } else {
+                                    htmlContent = await ddgRes.text();
+                                }
+
+                                // Verify we actually fetched a search page before accepting
+                                if (htmlContent && htmlContent.includes('result__snippet')) {
+                                    break;
+                                }
+                            } catch (e) {
+                                // Proxy blocked or failed, silenty fall back to the next one
+                            }
+                        }
+
+                        if (htmlContent) {
                             const parser = new DOMParser();
-                            const doc = parser.parseFromString(ddgData.contents, 'text/html');
+                            const doc = parser.parseFromString(htmlContent, 'text/html');
                             const resultNodes = doc.querySelectorAll('.result__body');
                             for (let i = 0; i < Math.min(resultNodes.length, 3); i++) {
                                 const titleEl = resultNodes[i].querySelector('.result__title');
