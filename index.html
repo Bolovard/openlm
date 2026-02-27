@@ -1022,6 +1022,66 @@
             background: var(--gpt-border);
         }
 
+        .notes-alignment-select {
+            background: var(--gpt-input);
+            border: none;
+            border-radius: 9999px;
+            padding: 0 12px;
+            height: 30px;
+            font-size: 13px;
+            color: var(--gpt-text);
+            cursor: pointer;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+            transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .notes-alignment-select:hover {
+            background-color: var(--gpt-hover);
+        }
+
+        .notes-alignment-select:focus {
+            outline: none;
+        }
+
+        .notes-alignment-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 4px;
+            background: var(--gpt-input);
+            border: 1px solid var(--gpt-border);
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+            font-size: 13px;
+            color: var(--gpt-text);
+            overflow: hidden;
+            z-index: 1000;
+            padding: 4px;
+            min-width: 130px;
+        }
+
+        .notes-alignment-dropdown-item {
+            padding: 7px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.15s;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .notes-alignment-dropdown-item:hover {
+            background: var(--gpt-border);
+        }
+
         .notes-toolbar-color {
             width: 22px;
             height: 22px;
@@ -1866,6 +1926,31 @@
                                     <div class="notes-textsize-dropdown-item" onclick="selectNoteTextSize(60)">60</div>
                                     <div class="notes-textsize-dropdown-item" onclick="selectNoteTextSize(72)">72</div>
                                     <div class="notes-textsize-dropdown-item" onclick="selectNoteTextSize(96)">96</div>
+                                </div>
+                            </div>
+                            <div class="notes-toolbar-divider"></div>
+                            <!-- Alignment dropdown -->
+                            <div class="relative">
+                                <button type="button" class="notes-alignment-select select-none"
+                                    onclick="toggleNoteAlignmentDropdown(event)" title="Text alignment">
+                                    <i id="note-alignment-icon" class="fa-solid fa-align-left text-[13px]"></i>
+                                    <i id="note-alignment-arrow"
+                                        class="fa-solid fa-chevron-down text-gpt-muted text-[10px] transition-transform duration-200"></i>
+                                </button>
+                                <div id="note-alignment-dropdown"
+                                    class="notes-alignment-dropdown hidden">
+                                    <div class="notes-alignment-dropdown-item" onclick="selectNoteAlignment('left')">
+                                        <i class="fa-solid fa-align-left"></i> <span>Left</span>
+                                    </div>
+                                    <div class="notes-alignment-dropdown-item" onclick="selectNoteAlignment('center')">
+                                        <i class="fa-solid fa-align-center"></i> <span>Center</span>
+                                    </div>
+                                    <div class="notes-alignment-dropdown-item" onclick="selectNoteAlignment('right')">
+                                        <i class="fa-solid fa-align-right"></i> <span>Right</span>
+                                    </div>
+                                    <div class="notes-alignment-dropdown-item" onclick="selectNoteAlignment('justify')">
+                                        <i class="fa-solid fa-align-justify"></i> <span>Justify</span>
+                                    </div>
                                 </div>
                             </div>
                             <div class="notes-toolbar-divider"></div>
@@ -4318,6 +4403,105 @@
             const arrow = document.getElementById('note-textsize-arrow');
             if (arrow) arrow.style.transform = 'rotate(0deg)';
         }, true);
+
+        // Alignment dropdown logic
+        function toggleNoteAlignmentDropdown(event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById('note-alignment-dropdown');
+            const arrow = document.getElementById('note-alignment-arrow');
+            const isHidden = dropdown.classList.contains('hidden');
+
+            if (isHidden) {
+                dropdown.classList.remove('hidden');
+                if (arrow) arrow.style.transform = 'rotate(180deg)';
+            } else {
+                dropdown.classList.add('hidden');
+                if (arrow) arrow.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function selectNoteAlignment(alignment) {
+            const alignmentMap = {
+                'left': 'left',
+                'center': 'center',
+                'right': 'right',
+                'justify': 'justify'
+            };
+
+            const command = alignment;
+            execNoteCmd('justify' + alignment.charAt(0).toUpperCase() + alignment.slice(1));
+
+            const icon = document.getElementById('note-alignment-icon');
+            if (icon) {
+                const iconMap = {
+                    'left': 'fa-align-left',
+                    'center': 'fa-align-center',
+                    'right': 'fa-align-right',
+                    'justify': 'fa-align-justify'
+                };
+
+                // Remove all alignment classes
+                icon.className = 'fa-solid text-[13px]';
+                // Add the new alignment class
+                icon.classList.add(iconMap[alignment]);
+            }
+
+            const dropdown = document.getElementById('note-alignment-dropdown');
+            if (dropdown) dropdown.classList.add('hidden');
+            const arrow = document.getElementById('note-alignment-arrow');
+            if (arrow) arrow.style.transform = 'rotate(0deg)';
+
+            const editor = document.getElementById('notes-editor');
+            if (editor) editor.focus();
+            handleNoteEditorInput();
+            updateNoteToolbar();
+        }
+
+        // Update alignment icon based on current selection
+        function updateNoteAlignmentIcon() {
+            const editor = document.getElementById('notes-editor');
+            if (!editor) return;
+
+            const sel = window.getSelection();
+            if (sel.rangeCount > 0) {
+                const node = sel.anchorNode;
+                if (node) {
+                    const el = node.nodeType === 3 ? node.parentNode : node;
+                    const align = window.getComputedStyle(el).textAlign;
+
+                    const icon = document.getElementById('note-alignment-icon');
+                    if (icon) {
+                        icon.className = 'fa-solid text-[13px]';
+
+                        if (align === 'center') {
+                            icon.classList.add('fa-align-center');
+                        } else if (align === 'right') {
+                            icon.classList.add('fa-align-right');
+                        } else if (align === 'justify') {
+                            icon.classList.add('fa-align-justify');
+                        } else {
+                            icon.classList.add('fa-align-left');
+                        }
+                    }
+                }
+            }
+        }
+
+        // Close alignment dropdown on click outside
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.notes-alignment-select')) return;
+            const dropdown = document.getElementById('note-alignment-dropdown');
+            if (dropdown) dropdown.classList.add('hidden');
+            const arrow = document.getElementById('note-alignment-arrow');
+            if (arrow) arrow.style.transform = 'rotate(0deg)';
+        }, true);
+
+        // Update updateNoteToolbar to include alignment icon update
+        const originalUpdateNoteToolbar = updateNoteToolbar;
+        updateNoteToolbar = function() {
+            originalUpdateNoteToolbar();
+            updateNoteAlignmentIcon();
+        };
 
         // ── End Notes Integration ─────────────────────────────────────────────────
 
