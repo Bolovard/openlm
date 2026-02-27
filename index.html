@@ -3005,6 +3005,38 @@
 
         function renderChatList() {
             chatHistoryList.innerHTML = '';
+
+            const visibleChats = chats.filter(c => !c.isArchived);
+            const header = document.getElementById('chat-list-header');
+            const list = document.getElementById('chat-history-list');
+            const spacer = document.getElementById('chat-list-spacer');
+            const chevron = document.getElementById('chat-list-chevron');
+
+            if (visibleChats.length === 0) {
+                if (header) {
+                    header.classList.add('hidden');
+                    header.classList.remove('flex');
+                }
+                if (list) list.classList.add('hidden');
+                if (spacer) spacer.classList.add('hidden');
+            } else {
+                if (header) {
+                    header.classList.remove('hidden');
+                    header.classList.add('flex');
+                }
+
+                const isCollapsed = localStorage.getItem('gpt_chatlist_collapsed') === 'true';
+                if (!isCollapsed) {
+                    if (list) list.classList.remove('hidden');
+                    if (spacer) spacer.classList.remove('hidden');
+                    if (chevron) chevron.style.transform = 'rotate(0deg)';
+                } else {
+                    if (list) list.classList.add('hidden');
+                    if (spacer) spacer.classList.add('hidden');
+                    if (chevron) chevron.style.transform = 'rotate(-90deg)';
+                }
+            }
+
             chats.forEach(chat => {
                 if (chat.isArchived) return; // Hide archived chats from sidebar
 
