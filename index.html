@@ -4079,11 +4079,16 @@
             const hiliteColor = document.queryCommandValue('hiliteColor') || document.queryCommandValue('backColor');
             document.getElementById('note-bg-color').value = rgbToHex(hiliteColor) || '#000000';
 
+            // Check if text is selected
+            const sel = window.getSelection();
+            const hasSelection = sel.rangeCount > 0 && !sel.toString().length === 0;
+
             const toggles = ['bold', 'italic', 'underline', 'strikeThrough', 'insertUnorderedList', 'insertOrderedList'];
             toggles.forEach(cmd => {
                 const btn = document.querySelector(`button[onclick="execNoteCmd('${cmd}')"]`);
                 if (btn) {
-                    if (document.queryCommandState(cmd)) {
+                    // Only show active state if text is selected AND has the property
+                    if (hasSelection && document.queryCommandState(cmd)) {
                         btn.style.backgroundColor = 'var(--gpt-border)';
                     } else {
                         btn.style.backgroundColor = 'transparent';
@@ -4091,7 +4096,6 @@
                 }
             });
 
-            const sel = window.getSelection();
             if (sel.rangeCount > 0) {
                 const node = sel.anchorNode;
                 if (node) {
