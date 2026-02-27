@@ -4081,7 +4081,7 @@
 
             // Check if text is selected
             const sel = window.getSelection();
-            const hasSelection = sel.rangeCount > 0 && !sel.toString().length === 0;
+            const hasSelection = sel.rangeCount > 0 && sel.toString().length > 0;
 
             const toggles = ['bold', 'italic', 'underline', 'strikeThrough', 'insertUnorderedList', 'insertOrderedList'];
             toggles.forEach(cmd => {
