@@ -1338,17 +1338,20 @@
             </button>
         </div>
 
-        <div class="px-3 py-2 pt-4 text-xs font-semibold text-gpt-muted" data-i18n="your_chats">
-            Your chats
+        <div class="px-3 py-2 pt-4 flex items-center justify-between text-xs font-semibold text-gpt-muted cursor-pointer hover:text-gpt-text transition-colors group select-none"
+            onclick="toggleChatList()" id="chat-list-header">
+            <span data-i18n="your_chats">Your chats</span>
+            <i class="fa-solid fa-chevron-down text-[10px] transition-transform duration-200"
+                id="chat-list-chevron"></i>
         </div>
 
         <!-- Chat History List -->
-        <div class="flex-1 overflow-y-auto px-3" id="chat-history-list">
+        <div class="flex-1 overflow-y-auto px-3 transition-opacity duration-200" id="chat-history-list">
             <!-- Dynamically populated -->
         </div>
 
         <!-- Bottom Spacer -->
-        <div class="p-3 relative">
+        <div class="p-3 relative transition-opacity duration-200" id="chat-list-spacer">
             <!-- Smooth Scroll Fade Overlay -->
             <div
                 class="absolute top-[-24px] left-0 right-0 h-6 bg-gradient-to-t from-gpt-sidebar to-transparent pointer-events-none z-10 w-[260px]">
@@ -3026,6 +3029,24 @@
             localStorage.setItem('localgpt_chats', JSON.stringify(chats));
         }
 
+        function toggleChatList() {
+            const list = document.getElementById('chat-history-list');
+            const chevron = document.getElementById('chat-list-chevron');
+            const spacer = document.getElementById('chat-list-spacer');
+
+            if (list.classList.contains('hidden')) {
+                list.classList.remove('hidden');
+                if (spacer) spacer.classList.remove('hidden');
+                if (chevron) chevron.style.transform = 'rotate(0deg)';
+                localStorage.setItem('gpt_chatlist_collapsed', 'false');
+            } else {
+                list.classList.add('hidden');
+                if (spacer) spacer.classList.add('hidden');
+                if (chevron) chevron.style.transform = 'rotate(-90deg)';
+                localStorage.setItem('gpt_chatlist_collapsed', 'true');
+            }
+        }
+
         // Settings Modals Integration
         function openSettings(defaultTab = 'general') {
             document.getElementById('settings-modal').classList.remove('hidden');
@@ -3638,6 +3659,16 @@
             }
 
             applyLanguageTranslations();
+
+            // Load chatlist collapsed state
+            if (localStorage.getItem('gpt_chatlist_collapsed') === 'true') {
+                const list = document.getElementById('chat-history-list');
+                const chevron = document.getElementById('chat-list-chevron');
+                const spacer = document.getElementById('chat-list-spacer');
+                if (list) list.classList.add('hidden');
+                if (spacer) spacer.classList.add('hidden');
+                if (chevron) chevron.style.transform = 'rotate(-90deg)';
+            }
         });
 
         // Context Menu Logic
