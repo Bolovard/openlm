@@ -2226,8 +2226,7 @@
                 localStorage.removeItem('localgpt_active_endpoint');
             }
         }
-        let isGenerating = false;
-        let currentAbortController = null;
+        let generatingChats = {};
 
         // ── Click-outside / Escape to close any modal ──────────────────────────────
         const MODAL_CLOSE_FNS = {
@@ -2272,7 +2271,7 @@
             const input = document.getElementById('message-input');
             const hasText = input && input.value.trim().length > 0;
             const hasFiles = selectedFiles.length > 0;
-            if (isGenerating) {
+            if (currentChatId && generatingChats[currentChatId]) {
                 btn.innerHTML = '<i class="fa-solid fa-square text-[10px]"></i>';
                 btn.disabled = false;
                 btn.classList.remove('opacity-30');
@@ -2704,9 +2703,9 @@
         async function handleSend(event, isRetry = false) {
             if (event) event.preventDefault();
 
-            if (isGenerating) {
-                if (currentAbortController) currentAbortController.abort();
-                isGenerating = false;
+            if (currentChatId && generatingChats[currentChatId]) {
+                if (generatingChats[currentChatId].abortController) generatingChats[currentChatId].abortController.abort();
+                delete generatingChats[currentChatId];
                 updateSendButtonState();
                 return;
             }
@@ -2836,9 +2835,11 @@
             const loadingId = 'loading-' + Date.now();
             appendLoadingIndicator(loadingId);
 
-            isGenerating = true;
+            const generatedChatId = currentChatId;
+            const currentChatRef = currentChat;
+            const currentAbortController = new AbortController();
+            generatingChats[generatedChatId] = { abortController: currentAbortController, div: null };
             updateSendButtonState();
-            currentAbortController = new AbortController();
 
             // Fetch from local LM
             let aiResponse = "";
@@ -2965,7 +2966,7 @@
             // The rAF render loop above picks up the changes at 60fps.
             const typerPromise = (async () => {
                 while (true) {
-                    if (!isGenerating) break;
+                    if (!generatingChats[generatedChatId]) break;
 
                     if (tokenQueue.length > 0) {
                         if (!dotRemoved) {
@@ -2993,7 +2994,7 @@
                     // Mock: push chars into queue at a simulated generation speed
                     const mockText = `*(Local Network Check)*\n\nI received: "${text}".\n\nThis is a fully local environment. To connect to your real models via \`http://local\`, ensure your service allows cross-origin requests.`;
                     for (const ch of mockText) {
-                        if (!isGenerating) break;
+                        if (!generatingChats[generatedChatId]) break;
                         tokenQueue += ch;
                         await new Promise(r => setTimeout(r, 8));
                     }
@@ -3094,7 +3095,7 @@
                     aiResponse = typedText;
                     if (aiResponse) renderMarkdownAndMath(streamContent, aiResponse);
                     if (!aiResponse) streamMsgDiv.remove();
-                    if (isGenerating) { isGenerating = false; updateSendButtonState(); }
+                    if (generatingChats[generatedChatId]) { delete generatingChats[generatedChatId]; updateSendButtonState(); }
                     return;
                 }
                 console.error('Local LM Error:', error);
@@ -3114,7 +3115,11 @@
             // ── Finalise ──────────────────────────────────────────────────────────
             if (aiResponse) {
                 currentChat.messages.push({ role: 'assistant', content: aiResponse });
+                if (currentChatId !== generatedChatId) {
+                    currentChat.hasUnread = true;
+                }
                 saveChats();
+                renderChatList();
             } else if (!streamMsgDiv.textContent.trim()) {
                 streamMsgDiv.remove();
             }
@@ -3125,8 +3130,8 @@
                 requestAnimationFrame(() => streamActions.classList.add('opacity-0', 'group-hover:opacity-100', 'transition-opacity'));
             }
 
-            if (isGenerating) {
-                isGenerating = false;
+            if (generatingChats[generatedChatId]) {
+                delete generatingChats[generatedChatId];
                 updateSendButtonState();
             }
         }
@@ -3260,8 +3265,18 @@
             if (chat && chat.messages) {
                 chat.messages.forEach(m => appendMessage(m.role, m.content));
             }
+            if (generatingChats[id] && generatingChats[id].div) {
+                document.getElementById('chat-messages').appendChild(generatingChats[id].div);
+                scrollToBottom();
+            }
+
+            if (chat) {
+                chat.hasUnread = false;
+                saveChats();
+            }
 
             renderChatList(); // Refresh sidebar highlighting
+            updateSendButtonState();
         }
 
         function renderChatList() {
@@ -3307,7 +3322,12 @@
 
                 btn.dataset.id = chat.id;
 
-                btn.innerHTML = `<span class="truncate inline-block max-w-[190px] w-full text-left">${chat.title}</span>`;
+                btn.innerHTML = `<div class="flex items-center justify-between w-full"><span class="truncate inline-block text-left">${chat.title}</span>`;
+                if (chat.hasUnread) {
+                    btn.innerHTML += `<div class="w-2 h-2 rounded-full bg-gpt-accent shrink-0 ml-2 shadow-[0_0_8px_rgba(59,130,246,0.6)]"></div>`;
+                }
+                btn.innerHTML += `</div>`;
+
                 btn.onclick = () => loadChat(chat.id);
                 btn.oncontextmenu = (e) => {
                     e.preventDefault();
