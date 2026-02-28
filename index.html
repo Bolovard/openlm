@@ -3086,6 +3086,50 @@
                         typedText = '*(Mock Network)* Image Generation simulated. ![Generated](https://images.unsplash.com/photo-1542204165-65bf26472b9b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80)';
                     } else if (activeEndpoint.type === 'ollama') {
                         typedText = '*Error: Ollama does not currently support image generation natively via this endpoint.*';
+                    } else if (rawUrl.includes('huggingface.co')) {
+                        // HuggingFace uses a different API for Image Generation (Serverless Inference API returns binary blob)
+                        const hfImgUrl = `https://api-inference.huggingface.co/models/${activeEndpoint.model}`;
+                        const headers = { 'Content-Type': 'application/json' };
+                        if (activeEndpoint.key) headers['Authorization'] = `Bearer ${activeEndpoint.key}`;
+
+                        const res = await fetch(hfImgUrl, {
+                            method: 'POST',
+                            signal: currentAbortController.signal,
+                            headers: headers,
+                            body: JSON.stringify({ inputs: modelInputText })
+                        });
+
+                        if (!res.ok) {
+                            const errText = await res.text();
+                            throw new Error(`HTTP ${res.status}: ${errText}`);
+                        }
+
+                        let returnedImgUrl = "";
+                        const contentType = res.headers.get('content-type');
+                        if (contentType && contentType.startsWith('image/')) {
+                            const blob = await res.blob();
+                            returnedImgUrl = await new Promise((resolve, reject) => {
+                                const reader = new FileReader();
+                                reader.onloadend = () => resolve(reader.result);
+                                reader.onerror = reject;
+                                reader.readAsDataURL(blob);
+                            });
+                        } else {
+                            // Fallback if HF magically returns valid OpenAI compat JSON response one day
+                            const data = await res.json();
+                            if (data && data.data && data.data.length > 0) {
+                                returnedImgUrl = data.data[0].url || data.data[0].b64_json;
+                                if (returnedImgUrl && !returnedImgUrl.startsWith('http') && !returnedImgUrl.startsWith('data:')) {
+                                    returnedImgUrl = `data:image/png;base64,${returnedImgUrl}`;
+                                }
+                            }
+                        }
+
+                        if (returnedImgUrl) {
+                            typedText = `![Generated Image](${returnedImgUrl})`;
+                        } else {
+                            typedText = '*Failed to generate image: No valid image data returned from HuggingFace.*';
+                        }
                     } else {
                         const headers = { 'Content-Type': 'application/json' };
                         if (activeEndpoint.key) headers['Authorization'] = `Bearer ${activeEndpoint.key}`;
