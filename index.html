@@ -2644,7 +2644,7 @@
                             ? '<i class="fa-solid fa-cloud text-[10px] text-blue-400 mr-1" title="Cloud"></i>'
                             : '<i class="fa-solid fa-server text-[10px] text-emerald-400 mr-1" title="Local"></i>';
                         const btn = document.createElement('button');
-                        btn.className = 'w-full text-left px-3 py-2 text-sm hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-colors flex items-center justify-between mb-1 text-gpt-text group';
+                        btn.className = 'w-full text-left px-3 py-2 text-sm hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-colors flex items-center justify-between mb-1 text-gpt-text group/model';
 
                         btn.innerHTML = `
                             <div class="flex items-center min-w-0 flex-1">
@@ -2653,10 +2653,10 @@
                                 <span class="text-xs text-gpt-muted shrink-0 text-ellipsis overflow-hidden whitespace-nowrap" style="max-width: 80px;">(${model.modelId})</span>
                             </div>
                             <div class="flex items-center gap-1 pl-2">
-                                <span class="text-gpt-muted opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gpt-hover p-1 rounded" onclick="openEditModelModal(event, '${model.name}')" title="Edit">
+                                <span class="text-gpt-muted opacity-0 group-hover/model:opacity-100 transition-opacity hover:bg-gpt-hover p-1 rounded" onclick="openEditModelModal(event, '${model.name}')" title="Edit">
                                     <i class="fa-solid fa-pen text-xs"></i>
                                 </span>
-                                <span class="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/10 p-1 rounded" onclick="deleteCustomModel(event, '${model.name}')" title="Delete">
+                                <span class="text-red-500 opacity-0 group-hover/model:opacity-100 transition-opacity hover:bg-red-500/10 p-1 rounded" onclick="deleteCustomModel(event, '${model.name}')" title="Delete">
                                     <i class="fa-solid fa-trash text-xs"></i>
                                 </span>
                                 ${activeEndpoint.model === model.modelId && activeEndpoint.type === 'custom' && activeEndpoint.name === model.name ? '<i class="fa-solid fa-check text-xs"></i>' : ''}
