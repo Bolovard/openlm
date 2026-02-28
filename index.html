@@ -97,6 +97,7 @@
                             main: 'var(--gpt-main)',
                             sidebar: 'var(--gpt-sidebar)',
                             hover: 'var(--gpt-hover)',
+                            active: 'var(--gpt-active)',
                             border: 'var(--gpt-border)',
                             input: 'var(--gpt-input)',
                             text: 'var(--gpt-text)',
@@ -192,6 +193,7 @@
             --gpt-main: #ffffff;
             --gpt-sidebar: #f7f7f7;
             --gpt-hover: #e5e5e5;
+            --gpt-active: #d4d4d4;
             --gpt-border: #cccccc;
             --gpt-input: #eeeeee;
             --gpt-text: #111111;
@@ -208,6 +210,7 @@
             --gpt-main: #212121;
             --gpt-sidebar: #171717;
             --gpt-hover: #2f2f2f;
+            --gpt-active: #262626;
             --gpt-border: #424242;
             --gpt-input: #2f2f2f;
             --gpt-text: #ececec;
@@ -791,8 +794,12 @@
         }
 
         .notes-list-item.active {
-            background: var(--gpt-hover);
+            background: var(--gpt-active);
             font-weight: 500;
+        }
+
+        .notes-list-item.active:hover {
+            background: var(--gpt-hover);
         }
 
         .notes-list-item i {
@@ -3239,11 +3246,12 @@
 
             // Set Sidebar Active State
             document.querySelectorAll('#chat-history-list button').forEach(btn => {
+                btn.classList.remove('bg-gpt-active');
                 btn.classList.remove('bg-gpt-hover');
             });
             const activeBtn = Array.from(document.querySelectorAll('#chat-history-list button')).find(b => b.innerText === chat.title);
             if (activeBtn) {
-                activeBtn.classList.add('bg-gpt-hover');
+                activeBtn.classList.add('bg-gpt-active');
             }
 
             // Load messages
@@ -3293,7 +3301,7 @@
 
                 const btn = document.createElement('button');
                 btn.className = 'w-full flex items-center px-3 py-2 text-sm text-gpt-text bg-transparent hover:bg-gpt-hover rounded-lg transition-colors mb-1 border-none outline-none overflow-hidden';
-                if (currentChatId === chat.id) btn.classList.add('bg-gpt-hover');
+                if (currentChatId === chat.id) btn.classList.add('bg-gpt-active');
 
                 btn.dataset.id = chat.id;
 
