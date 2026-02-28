@@ -402,6 +402,11 @@
             scrollbar-width: thin;
         }
 
+        /* Prevent button hover effect when dropdown is open and hovered */
+        #model-selector-btn:has(#model-dropdown:not(.hidden)):hover {
+            background-color: transparent !important;
+        }
+
         .model-picker-item {
             display: flex;
             align-items: center;
