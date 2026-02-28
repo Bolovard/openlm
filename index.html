@@ -2899,6 +2899,7 @@
             // Images travel separately via openaiContentParts / imageBase64s
             let modelInputText = modelApiText;
             const currentLang = localStorage.getItem('gpt_local_language') || 'en-US';
+            const isImageModel = ['dall-e', 'dalle', 'midjourney', 'stable-diffusion', 'sdxl', 'flux', 'imagen'].some(k => activeEndpoint.model.toLowerCase().includes(k));
 
             // Build the OpenAI multipart content array for vision-capable endpoints.
             // openaiContentParts is used for both 'openai' and 'custom' endpoint types.
@@ -2966,7 +2967,26 @@
             const streamMsgDiv = document.createElement('div');
             streamMsgDiv.dataset.role = 'assistant';
             streamMsgDiv.className = 'w-full py-4 text-gpt-text flex flex-col group mx-auto max-w-3xl px-4 md:px-5';
-            streamMsgDiv.innerHTML = `
+            streamMsgDiv.innerHTML = isImageModel ? `
+                <div class="flex items-start w-full">
+                    <div class="flex-1 overflow-visible selectable flex flex-col min-w-0">
+                        <div class="markdown-body leading-relaxed text-[15px] max-w-full overflow-hidden break-words !bg-transparent !p-0">
+                            <div class="mb-3 text-[13px] text-gray-400">Creating image</div>
+                            <div class="w-full max-w-[400px] aspect-[1/1] rounded-2xl overflow-hidden relative shadow-lg">
+                                <div class="absolute inset-0 bg-gradient-to-br from-[#504051] via-[#6d4d67] to-[#403947] animate-pulse"></div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1 mt-2 opacity-0 action-buttons-container text-gpt-muted hidden">
+                            <button onclick="copyMessageText(this)" class="action-icon w-8 h-8 rounded flex items-center justify-center hover:bg-gpt-hover p-1.5 focus:outline-none" title="Copy">
+                                <i class="fa-regular fa-copy text-[13px]"></i>
+                            </button>
+                            <button onclick="handleSend(null, true)" class="action-icon w-8 h-8 rounded flex items-center justify-center hover:bg-gpt-hover p-1.5 focus:outline-none" title="Regenerate">
+                                <i class="fa-solid fa-rotate-right text-[13px]"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ` : `
                 <div class="flex items-start w-full">
                     <div class="flex-1 overflow-visible selectable flex flex-col min-w-0">
                         <div class="markdown-body leading-relaxed text-[15px] max-w-full overflow-hidden break-words !bg-transparent !p-0"></div>
@@ -2988,8 +3008,8 @@
             // Pulsing dot shown while the queue is still empty (model is formulating)
             const pendingDot = document.createElement('span');
             pendingDot.className = 'stream-pending-dot';
-            streamContent.appendChild(pendingDot);
-            let dotRemoved = false;
+            if (!isImageModel) streamContent.appendChild(pendingDot);
+            let dotRemoved = isImageModel ? true : false;
 
             scrollToBottom();
 
@@ -3047,7 +3067,68 @@
             })();
 
             try {
-                if (activeEndpoint.type === 'mock') {
+                if (isImageModel) {
+                    // IMAGE GENERATION
+                    const rawUrl = (activeEndpoint.url || '').replace(/\/+$/, '');
+
+                    let imgUrl = activeEndpoint.type === 'openai'
+                        ? 'https://api.openai.com/v1/images/generations'
+                        : `${rawUrl}/v1/images/generations`;
+
+                    if (activeEndpoint.type === 'custom' && rawUrl.endsWith('/images/generations')) {
+                        imgUrl = rawUrl;
+                    } else if (activeEndpoint.type === 'custom' && rawUrl.includes('/v1') && !rawUrl.endsWith('/images/generations')) {
+                        imgUrl = `${rawUrl}/images/generations`;
+                    }
+
+                    if (activeEndpoint.type === 'mock') {
+                        await new Promise(r => setTimeout(r, 2000));
+                        typedText = '*(Mock Network)* Image Generation simulated. ![Generated](https://images.unsplash.com/photo-1542204165-65bf26472b9b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80)';
+                    } else if (activeEndpoint.type === 'ollama') {
+                        typedText = '*Error: Ollama does not currently support image generation natively via this endpoint.*';
+                    } else {
+                        const headers = { 'Content-Type': 'application/json' };
+                        if (activeEndpoint.key) headers['Authorization'] = `Bearer ${activeEndpoint.key}`;
+
+                        const res = await fetch(imgUrl, {
+                            method: 'POST',
+                            signal: currentAbortController.signal,
+                            headers: headers,
+                            // dall-e-3 normally needs prompt, model, n, size
+                            body: JSON.stringify({
+                                model: activeEndpoint.model,
+                                prompt: modelInputText,
+                                n: 1,
+                                size: '1024x1024'
+                            })
+                        });
+
+                        if (!res.ok) {
+                            const errText = await res.text();
+                            throw new Error(`HTTP ${res.status}: ${errText}`);
+                        }
+
+                        const data = await res.json();
+                        let returnedImgUrl = "";
+                        if (data && data.data && data.data.length > 0) {
+                            returnedImgUrl = data.data[0].url || data.data[0].b64_json;
+                            if (returnedImgUrl && !returnedImgUrl.startsWith('http') && !returnedImgUrl.startsWith('data:')) {
+                                returnedImgUrl = `data:image/png;base64,${returnedImgUrl}`;
+                            }
+                        }
+
+                        if (returnedImgUrl) {
+                            typedText = `![Generated Image](${returnedImgUrl})`;
+                        } else {
+                            typedText = '*Failed to generate image: No valid URL returned.*';
+                        }
+                    }
+
+                    streamDone = true;
+                    renderDirty = true;
+                    tokenQueue = '';
+
+                } else if (activeEndpoint.type === 'mock') {
                     // Mock: push chars into queue at a simulated generation speed
                     const mockText = `*(Local Network Check)*\n\nI received: "${text}".\n\nThis is a fully local environment. To connect to your real models via \`http://local\`, ensure your service allows cross-origin requests.`;
                     for (const ch of mockText) {
