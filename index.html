@@ -3398,15 +3398,20 @@
 
         // UI Helpers
         let isUserScrolledUp = false;
+        const scrollContainer = document.getElementById('chat-container');
 
-        document.getElementById('chat-container').addEventListener('scroll', function () {
-            isUserScrolledUp = (this.scrollHeight - this.scrollTop - this.clientHeight) > 40;
+        scrollContainer.addEventListener('scroll', function () {
+            // Very low threshold to trigger unlock quickly
+            isUserScrolledUp = (this.scrollHeight - this.scrollTop - this.clientHeight) > 10;
         });
 
+        // Wheel and touch instantly flag an intended scroll so the user doesn't fight the loop
+        scrollContainer.addEventListener('wheel', () => isUserScrolledUp = true, { passive: true });
+        scrollContainer.addEventListener('touchmove', () => isUserScrolledUp = true, { passive: true });
+
         function scrollToBottom(force = false) {
-            const container = document.getElementById('chat-container');
             if (force || !isUserScrolledUp) {
-                container.scrollTop = container.scrollHeight;
+                scrollContainer.scrollTop = scrollContainer.scrollHeight;
             }
         }
 
