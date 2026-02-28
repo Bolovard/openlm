@@ -968,6 +968,66 @@
             border-radius: 1px;
         }
 
+        .notes-font-select {
+            background: var(--gpt-input);
+            border: none;
+            border-radius: 9999px;
+            padding: 0 12px;
+            height: 30px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--gpt-text);
+            cursor: pointer;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+            transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-width: 105px;
+            max-width: 130px;
+            gap: 8px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .notes-font-select:hover {
+            background-color: var(--gpt-hover);
+        }
+
+        .notes-font-select:focus {
+            outline: none;
+        }
+
+        .notes-font-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 4px;
+            background: var(--gpt-input);
+            border: 1px solid var(--gpt-border);
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+            font-size: 13px;
+            color: var(--gpt-text);
+            overflow: hidden;
+            z-index: 1000;
+            padding: 4px;
+            min-width: 130px;
+        }
+
+        .notes-font-dropdown-item {
+            padding: 7px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.15s;
+            white-space: nowrap;
+        }
+
+        .notes-font-dropdown-item:hover {
+            background: var(--gpt-border);
+        }
+
         .notes-textsize-select {
             background: var(--gpt-input);
             border: none;
@@ -1155,6 +1215,47 @@
 
         .notes-editor p {
             margin-bottom: 8px;
+        }
+
+        .note-checkbox-wrapper {
+            display: inline-block;
+            user-select: none;
+            -webkit-user-select: none;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+
+        .notes-editor input[type="checkbox"].note-checkbox {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--gpt-muted);
+            border-radius: 3px;
+            outline: none !important;
+            box-shadow: none !important;
+            cursor: pointer;
+            position: relative;
+            background-color: transparent;
+            transition: border-color 0.2s;
+            margin: 0;
+            display: block;
+        }
+
+        .notes-editor input[type="checkbox"].note-checkbox:checked {
+            border-color: var(--gpt-text);
+        }
+
+        .notes-editor input[type="checkbox"].note-checkbox:checked::after {
+            content: '';
+            position: absolute;
+            left: 3px;
+            top: 0px;
+            width: 4px;
+            height: 8px;
+            border: solid var(--gpt-text);
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
         }
 
         .notes-empty-state {
@@ -1901,6 +2002,66 @@
                     </div>
                     <div id="notes-editor-container" class="notes-editor-container">
                         <div class="notes-toolbar" id="notes-toolbar">
+                            <!-- Font Family dropdown -->
+                            <div class="relative">
+                                <button type="button" class="notes-font-select select-none"
+                                    onclick="toggleNoteFontDropdown(event)" title="Font">
+                                    <span id="note-font-display" class="font-medium truncate text-left"
+                                        style="width: 100px; display: inline-block;">Inter</span>
+                                    <i id="note-font-arrow"
+                                        class="fa-solid fa-chevron-down text-gpt-muted text-[10px] transition-transform duration-200 ml-2"></i>
+                                </button>
+                                <div id="note-font-dropdown"
+                                    class="notes-font-dropdown hidden max-h-[220px] overflow-y-auto w-[150px]">
+                                    <div class="notes-font-dropdown-item" style="font-family: inherit;"
+                                        onclick="selectNoteFont('inherit', 'Inter')">Inter</div>
+                                    <div class="notes-font-dropdown-item" style="font-family: Arial, sans-serif;"
+                                        onclick="selectNoteFont('Arial', 'Arial')">Arial</div>
+                                    <div class="notes-font-dropdown-item"
+                                        style="font-family: 'Arial Black', sans-serif;"
+                                        onclick="selectNoteFont('Arial Black', 'Arial Black')">Arial Black</div>
+                                    <div class="notes-font-dropdown-item"
+                                        style="font-family: 'Comic Sans MS', cursive, sans-serif;"
+                                        onclick="selectNoteFont('Comic Sans MS', 'Comic Sans')">Comic Sans MS</div>
+                                    <div class="notes-font-dropdown-item"
+                                        style="font-family: 'Courier New', Courier, monospace;"
+                                        onclick="selectNoteFont('Courier New', 'Courier New')">Courier New</div>
+                                    <div class="notes-font-dropdown-item"
+                                        style="font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;"
+                                        onclick="selectNoteFont('Franklin Gothic Medium', 'Franklin Gothic')">Franklin
+                                        Gothic</div>
+                                    <div class="notes-font-dropdown-item" style="font-family: Garamond, serif;"
+                                        onclick="selectNoteFont('Garamond', 'Garamond')">Garamond</div>
+                                    <div class="notes-font-dropdown-item" style="font-family: Georgia, serif;"
+                                        onclick="selectNoteFont('Georgia', 'Georgia')">Georgia</div>
+                                    <div class="notes-font-dropdown-item" style="font-family: Helvetica, sans-serif;"
+                                        onclick="selectNoteFont('Helvetica', 'Helvetica')">Helvetica</div>
+                                    <div class="notes-font-dropdown-item" style="font-family: Impact, sans-serif;"
+                                        onclick="selectNoteFont('Impact', 'Impact')">Impact</div>
+                                    <div class="notes-font-dropdown-item"
+                                        style="font-family: 'Lucida Console', Monaco, monospace;"
+                                        onclick="selectNoteFont('Lucida Console', 'Lucida Console')">Lucida Console
+                                    </div>
+                                    <div class="notes-font-dropdown-item"
+                                        style="font-family: 'Lucida Sans Unicode', 'Lucida Grande', sans-serif;"
+                                        onclick="selectNoteFont('Lucida Sans Unicode', 'Lucida Sans')">Lucida Sans</div>
+                                    <div class="notes-font-dropdown-item"
+                                        style="font-family: Palatino, 'Palatino Linotype', 'Book Antiqua', serif;"
+                                        onclick="selectNoteFont('Palatino', 'Palatino')">Palatino</div>
+                                    <div class="notes-font-dropdown-item"
+                                        style="font-family: Tahoma, Geneva, sans-serif;"
+                                        onclick="selectNoteFont('Tahoma', 'Tahoma')">Tahoma</div>
+                                    <div class="notes-font-dropdown-item"
+                                        style="font-family: 'Times New Roman', Times, serif;"
+                                        onclick="selectNoteFont('Times New Roman', 'Times')">Times New Roman</div>
+                                    <div class="notes-font-dropdown-item"
+                                        style="font-family: 'Trebuchet MS', Helvetica, sans-serif;"
+                                        onclick="selectNoteFont('Trebuchet MS', 'Trebuchet')">Trebuchet MS</div>
+                                    <div class="notes-font-dropdown-item" style="font-family: Verdana, sans-serif;"
+                                        onclick="selectNoteFont('Verdana', 'Verdana')">Verdana</div>
+                                </div>
+                            </div>
+                            <div class="notes-toolbar-divider"></div>
                             <!-- Text Size dropdown -->
                             <div class="relative">
                                 <button type="button" class="notes-textsize-select select-none"
@@ -1942,8 +2103,7 @@
                                     <i id="note-alignment-arrow"
                                         class="fa-solid fa-chevron-down text-gpt-muted text-[10px] transition-transform duration-200"></i>
                                 </button>
-                                <div id="note-alignment-dropdown"
-                                    class="notes-alignment-dropdown hidden">
+                                <div id="note-alignment-dropdown" class="notes-alignment-dropdown hidden">
                                     <div class="notes-alignment-dropdown-item" onclick="selectNoteAlignment('left')">
                                         <i class="fa-solid fa-align-left"></i> <span>Left</span>
                                     </div>
@@ -1977,6 +2137,8 @@
                                     title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
                                 <button onclick="execNoteCmd('insertOrderedList')" class="notes-toolbar-btn"
                                     title="Numbered List"><i class="fa-solid fa-list-ol"></i></button>
+                                <button onclick="insertNoteChecklist()" class="notes-toolbar-btn" title="Checklist"><i
+                                        class="fa-solid fa-list-check"></i></button>
                             </div>
                             <div class="notes-toolbar-divider"></div>
                             <!-- Color group -->
@@ -4068,6 +4230,15 @@
             updateNoteToolbar();
         }
 
+        function insertNoteChecklist() {
+            const html = '<span contenteditable="false" class="note-checkbox-wrapper"><input type="checkbox" class="note-checkbox"></span>&nbsp;';
+            document.execCommand('insertHTML', false, html);
+            const editor = document.getElementById('notes-editor');
+            if (editor) editor.focus();
+            handleNoteEditorInput();
+            updateNoteToolbar();
+        }
+
         function updateNoteToolbar() {
             // Helper to convert rgb to hex for color inputs
             const rgbToHex = (rgb) => {
@@ -4110,6 +4281,30 @@
                         const disp = document.getElementById('note-textsize-display');
                         if (disp && parseFloat(size)) {
                             disp.textContent = Math.round(parseFloat(size));
+                        }
+                    }
+                    const fontFam = window.getComputedStyle(el).fontFamily;
+                    if (fontFam) {
+                        const fontDisp = document.getElementById('note-font-display');
+                        if (fontDisp) {
+                            let name = 'Inter';
+                            if (fontFam.includes('Arial Black')) name = 'Arial Black';
+                            else if (fontFam.includes('Arial')) name = 'Arial';
+                            else if (fontFam.includes('Comic Sans MS')) name = 'Comic Sans MS';
+                            else if (fontFam.includes('Courier')) name = 'Courier New';
+                            else if (fontFam.includes('Franklin Gothic Medium')) name = 'Franklin Gothic';
+                            else if (fontFam.includes('Garamond')) name = 'Garamond';
+                            else if (fontFam.includes('Georgia')) name = 'Georgia';
+                            else if (fontFam.includes('Helvetica')) name = 'Helvetica';
+                            else if (fontFam.includes('Impact')) name = 'Impact';
+                            else if (fontFam.includes('Lucida Console')) name = 'Lucida Console';
+                            else if (fontFam.includes('Lucida Sans Unicode') || fontFam.includes('Lucida Grande')) name = 'Lucida Sans';
+                            else if (fontFam.includes('Palatino')) name = 'Palatino';
+                            else if (fontFam.includes('Tahoma')) name = 'Tahoma';
+                            else if (fontFam.includes('Times')) name = 'Times New Roman';
+                            else if (fontFam.includes('Trebuchet')) name = 'Trebuchet MS';
+                            else if (fontFam.includes('Verdana')) name = 'Verdana';
+                            fontDisp.textContent = name;
                         }
                     }
                 }
@@ -4404,6 +4599,65 @@
             cancelNoteTextSizeInput();
         }
 
+        // Font dropdown logic
+        function toggleNoteFontDropdown(event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById('note-font-dropdown');
+            const arrow = document.getElementById('note-font-arrow');
+            const isHidden = dropdown.classList.contains('hidden');
+
+            if (isHidden) {
+                dropdown.classList.remove('hidden');
+                if (arrow) arrow.style.transform = 'rotate(180deg)';
+            } else {
+                dropdown.classList.add('hidden');
+                if (arrow) arrow.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function selectNoteFont(fontName, displayName) {
+            if (fontName === 'inherit') {
+                document.execCommand('fontName', false, 'Inter');
+            } else {
+                document.execCommand('fontName', false, fontName);
+            }
+
+            // Remove size 7 attributes as a cleanup from execCommand, similar to text size (though fontName doesn't strictly set size, it doesn't hurt)
+            // But we actually just want to set font family for elements.
+            // When document.execCommand('fontName', false, fontName) is used, it sets <font face="fontName">
+            // We can convert <font> to <span style="font-family: ..."> for better markup.
+            const fontElements = document.getElementsByTagName("font");
+            for (let i = 0; i < fontElements.length; ++i) {
+                if (fontElements[i].face) {
+                    const face = fontElements[i].face;
+                    fontElements[i].removeAttribute("face");
+                    fontElements[i].style.fontFamily = face;
+                }
+            }
+
+            const disp = document.getElementById('note-font-display');
+            if (disp) disp.textContent = displayName;
+
+            const dropdown = document.getElementById('note-font-dropdown');
+            if (dropdown) dropdown.classList.add('hidden');
+            const arrow = document.getElementById('note-font-arrow');
+            if (arrow) arrow.style.transform = 'rotate(0deg)';
+
+            const editor = document.getElementById('notes-editor');
+            if (editor) editor.focus();
+            handleNoteEditorInput();
+            updateNoteToolbar();
+        }
+
+        // Close font dropdown on click outside
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.notes-font-select')) return;
+            const dropdown = document.getElementById('note-font-dropdown');
+            if (dropdown) dropdown.classList.add('hidden');
+            const arrow = document.getElementById('note-font-arrow');
+            if (arrow) arrow.style.transform = 'rotate(0deg)';
+        }, true);
+
         // Close text-size dropdown on click outside
         document.addEventListener('click', (e) => {
             if (e.target.closest('.notes-textsize-select')) return;
@@ -4507,7 +4761,7 @@
 
         // Update updateNoteToolbar to include alignment icon update
         const originalUpdateNoteToolbar = updateNoteToolbar;
-        updateNoteToolbar = function() {
+        updateNoteToolbar = function () {
             originalUpdateNoteToolbar();
             updateNoteAlignmentIcon();
         };
