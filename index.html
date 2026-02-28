@@ -2899,7 +2899,7 @@
             // Images travel separately via openaiContentParts / imageBase64s
             let modelInputText = modelApiText;
             const currentLang = localStorage.getItem('gpt_local_language') || 'en-US';
-            const isImageModel = ['dall-e', 'dalle', 'midjourney', 'stable-diffusion', 'sdxl', 'flux', 'imagen'].some(k => activeEndpoint.model.toLowerCase().includes(k));
+            const isImageModel = ['dall-e', 'dalle', 'midjourney', 'stable-diffusion', 'sdxl', 'flux', 'imagen', 'image'].some(k => activeEndpoint.model.toLowerCase().includes(k));
 
             // Build the OpenAI multipart content array for vision-capable endpoints.
             // openaiContentParts is used for both 'openai' and 'custom' endpoint types.
