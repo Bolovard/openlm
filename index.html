@@ -3011,7 +3011,7 @@
             if (!isImageModel) streamContent.appendChild(pendingDot);
             let dotRemoved = isImageModel ? true : false;
 
-            scrollToBottom();
+            scrollToBottom(true);
 
             // ── Producer/Consumer: AI fills queue instantly; typer drains at reading pace ──
             let tokenQueue = '';    // raw tokens pushed in by the stream producer
@@ -3378,7 +3378,7 @@
 
             // typeOut is kept for backward-compat (loading old history) but no longer used for live generation
             renderMarkdownAndMath(contentContainer, content);
-            scrollToBottom();
+            scrollToBottom(true);
         }
 
         function appendLoadingIndicator(id) {
@@ -3393,13 +3393,21 @@
                 </div>
             `;
             chatMessages.appendChild(msgDiv);
-            scrollToBottom();
+            scrollToBottom(true);
         }
 
         // UI Helpers
-        function scrollToBottom() {
+        let isUserScrolledUp = false;
+
+        document.getElementById('chat-container').addEventListener('scroll', function () {
+            isUserScrolledUp = (this.scrollHeight - this.scrollTop - this.clientHeight) > 40;
+        });
+
+        function scrollToBottom(force = false) {
             const container = document.getElementById('chat-container');
-            container.scrollTop = container.scrollHeight;
+            if (force || !isUserScrolledUp) {
+                container.scrollTop = container.scrollHeight;
+            }
         }
 
         function removeElement(id) {
