@@ -36,26 +36,76 @@
             // Encode exactly what needs to be copied into the clipboard button
             const encodedCode = encodeURIComponent(code).replace(/'/g, "%27");
 
+            const isHtml = validLanguage === 'html' || validLanguage === 'xml';
+
             return `
-<div class="rounded-[10px] overflow-hidden mb-4 bg-[#212121] border border-transparent dark:border-white/10 mt-3 font-sans w-full max-w-full">
-    <div class="flex items-center justify-between px-4 py-2 bg-[#2f2f2f] text-xs font-semibold text-gray-300">
+<div class="rounded-xl overflow-hidden mb-4 bg-[#1e1e1e] border border-white/10 mt-3 font-sans w-full max-w-full shadow-lg">
+    <div class="flex items-center justify-between px-4 py-2.5 bg-[#1e1e1e] border-b border-white/5 text-xs font-semibold text-gray-400">
         <div class="flex items-center gap-2">
-            <i class="fa-solid fa-code text-[11px]"></i>
-            <span>${displayLang}</span>
+            <i class="fa-solid fa-code text-[11px] opacity-70"></i>
+            <span class="tracking-wide">${displayLang}</span>
         </div>
-        <button class="flex items-center gap-1.5 hover:text-white transition-colors" onclick="copyCodeText(this, '${encodedCode}')">
-            <i class="fa-regular fa-clone"></i>
-            <span>Copy code</span>
-        </button>
+        <div class="flex items-center gap-2">
+            <button class="flex items-center hover:text-white transition-colors p-1" onclick="copyCodeText(this, '${encodedCode}')" title="Copy code">
+                <i class="fa-regular fa-copy text-[15px]"></i>
+            </button>
+            ${isHtml ? `
+            <div class="flex items-center bg-[#111111] rounded-full p-1 ml-2 border border-white/5">
+                <button class="w-8 h-7 flex items-center justify-center rounded-full bg-[#353535] text-white shadow-sm transition-all code-toggle-btn active-toggle" onclick="toggleHtmlView(this, 'code')" title="View Code">
+                    <i class="fa-solid fa-terminal text-[11px]"></i>
+                </button>
+                <button class="w-8 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-white transition-all code-toggle-btn" onclick="toggleHtmlView(this, 'preview')" title="Preview UI">
+                    <i class="fa-solid fa-play text-[11px]"></i>
+                </button>
+            </div>
+            ` : ''}
+        </div>
     </div>
-    <div class="p-4 overflow-x-auto text-[13px] leading-relaxed font-mono">
-        <pre><code class="hljs language-${validLanguage} bg-transparent p-0 m-0 border-0">${highlighted}</code></pre>
+    <div class="code-view-container relative w-full h-full">
+        <div class="p-4 overflow-x-auto text-[13.5px] leading-relaxed font-mono code-view-content block">
+            <pre><code class="hljs language-${validLanguage} bg-transparent p-0 m-0 border-0">${highlighted}</code></pre>
+        </div>
+        ${isHtml ? `
+        <div class="preview-view-content hidden bg-white w-full h-[500px]">
+            <iframe class="w-full h-full border-0" sandbox="allow-scripts allow-forms allow-same-origin allow-popups"></iframe>
+            <textarea class="hidden raw-code-holder">${encodedCode}</textarea>
+        </div>
+        ` : ''}
     </div>
 </div>
             `;
         };
 
         marked.setOptions({ renderer: renderer });
+
+        window.toggleHtmlView = function (btn, mode) {
+            const wrapper = btn.closest('.rounded-xl');
+            const toggleContainer = btn.closest('.bg-\\[\\#111111\\]');
+            const codeContent = wrapper.querySelector('.code-view-content');
+            const previewContent = wrapper.querySelector('.preview-view-content');
+            const iframe = wrapper.querySelector('iframe');
+
+            // Switch active classes on pills
+            const buttons = toggleContainer.querySelectorAll('button');
+            buttons.forEach(b => {
+                b.classList.remove('bg-[#353535]', 'text-white', 'shadow-sm', 'active-toggle');
+                b.classList.add('text-gray-400');
+            });
+            btn.classList.add('bg-[#353535]', 'text-white', 'shadow-sm', 'active-toggle');
+            btn.classList.remove('text-gray-400');
+
+            if (mode === 'preview') {
+                codeContent.classList.replace('block', 'hidden');
+                previewContent.classList.replace('hidden', 'block');
+                if (!iframe.srcdoc) {
+                    const rawText = decodeURIComponent(previewContent.querySelector('.raw-code-holder').value);
+                    iframe.srcdoc = rawText;
+                }
+            } else {
+                previewContent.classList.replace('block', 'hidden');
+                codeContent.classList.replace('hidden', 'block');
+            }
+        };
 
         window.copyCodeText = function (btn, encodedText) {
             navigator.clipboard.writeText(decodeURIComponent(encodedText));
@@ -2978,7 +3028,7 @@
                         tokenQueue = tokenQueue.slice(1);
                         renderDirty = true;
 
-                        await new Promise(r => setTimeout(r, 18 + Math.random() * 12));
+                        await new Promise(r => setTimeout(r, 4 + Math.random() * 6));
 
                     } else if (streamDone) {
                         break;
