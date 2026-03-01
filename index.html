@@ -262,6 +262,52 @@
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = htmlText;
 
+            // ----- EMBED AND LINK STYLING -----
+            const isAssistant = element.closest('[data-role="assistant"]') !== null;
+            const links = tempDiv.querySelectorAll('a');
+            links.forEach(a => {
+                if (isAssistant) {
+                    a.setAttribute('target', '_blank');
+                    // Highlight links using a soft blue tailwind shade
+                    a.className = 'text-[#3b82f6] font-medium hover:underline';
+                    a.style.textUnderlineOffset = '2px';
+
+                    // If the link is isolated on its own line/paragraph, convert to a rich embed block
+                    const p = a.parentElement;
+                    if (p && p.tagName === 'P' && p.textContent.trim() === a.textContent.trim()) {
+                        try {
+                            const urlObj = new URL(a.href);
+                            const domain = urlObj.hostname;
+                            // Build an OpenGraph style preview block using standard Tailwind classes used in this project
+                            const embedHtml = `
+                                <div class="flex items-center gap-3 bg-black/5 dark:bg-white/5 border border-gpt-border rounded-xl px-3 py-2 mt-2 mb-2 max-w-[400px] cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors" onclick="window.open('${a.href}', '_blank')">
+                                    <div class="w-10 h-10 bg-white dark:bg-[#2a2a2a] flex items-center justify-center rounded-lg flex-shrink-0 border border-gpt-border overflow-hidden">
+                                        <img src="https://www.google.com/s2/favicons?domain=${domain}&sz=64" class="w-6 h-6 object-contain" onerror="this.style.display='none'">
+                                    </div>
+                                    <div class="flex flex-col min-w-0 flex-1">
+                                        <span class="text-sm font-semibold truncate text-gpt-text">${domain}</span>
+                                        <span class="text-xs text-gpt-muted truncate">${a.href}</span>
+                                    </div>
+                                    <div class="w-6 h-6 flex items-center justify-center text-gpt-muted">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line>
+                                        </svg>
+                                    </div>
+                                </div>
+                            `;
+                            p.outerHTML = embedHtml;
+                        } catch (e) {
+                            // ignore invalid urls
+                        }
+                    }
+                } else {
+                    // For user messages, remove the link wrapper entirely so it's just plain text
+                    const textNode = document.createTextNode(a.textContent);
+                    a.parentNode.replaceChild(textNode, a);
+                }
+            });
+            // --------------------------------
+
             // Pre-process tempDiv to avoid UI toggle transition fighting
             const currentCodeBlocks = Array.from(element.querySelectorAll('.rounded-xl'));
             const newCodeBlocks = Array.from(tempDiv.querySelectorAll('.rounded-xl'));
