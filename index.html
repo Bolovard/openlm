@@ -46,15 +46,15 @@
             <span class="tracking-wide">${displayLang}</span>
         </div>
         <div class="flex items-center gap-2">
-            <button class="flex items-center hover:text-white transition-colors p-1" onclick="copyCodeText(this, '${encodedCode}')" title="Copy code">
+            <button class="flex items-center hover:text-white transition-colors p-1" onpointerdown="copyCodeText(this, '${encodedCode}')" title="Copy code">
                 <i class="fa-regular fa-copy text-[15px]"></i>
             </button>
             ${isHtml ? `
             <div class="flex items-center bg-[#111111] rounded-full p-1 ml-2 border border-white/5">
-                <button class="w-8 h-7 flex items-center justify-center rounded-full bg-[#353535] text-white shadow-sm transition-all code-toggle-btn active-toggle" onclick="toggleHtmlView(this, 'code')" title="View Code">
+                <button class="w-8 h-7 flex items-center justify-center rounded-full bg-[#353535] text-white shadow-sm transition-all code-toggle-btn active-toggle" onpointerdown="toggleHtmlView(this, 'code')" title="View Code">
                     <i class="fa-solid fa-terminal text-[11px]"></i>
                 </button>
-                <button class="w-8 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-white transition-all code-toggle-btn" onclick="toggleHtmlView(this, 'preview')" title="Preview UI">
+                <button class="w-8 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-white transition-all code-toggle-btn" onpointerdown="toggleHtmlView(this, 'preview')" title="Preview UI">
                     <i class="fa-solid fa-play text-[11px]"></i>
                 </button>
             </div>
@@ -97,9 +97,33 @@
             if (mode === 'preview') {
                 codeContent.classList.replace('block', 'hidden');
                 previewContent.classList.replace('hidden', 'block');
-                if (!iframe.srcdoc) {
-                    const rawText = decodeURIComponent(previewContent.querySelector('.raw-code-holder').value);
-                    iframe.srcdoc = rawText;
+
+                const rawText = decodeURIComponent(previewContent.querySelector('.raw-code-holder').value);
+                if (iframe._lastText !== rawText) {
+                    const doc = iframe.contentDocument;
+                    if (doc) {
+                        try {
+                            const scrollX = iframe.contentWindow.scrollX || 0;
+                            const scrollY = iframe.contentWindow.scrollY || 0;
+
+                            const newDoc = new DOMParser().parseFromString(rawText, 'text/html');
+                            doc.documentElement.innerHTML = newDoc.documentElement.innerHTML;
+                            const scripts = doc.documentElement.querySelectorAll('script');
+                            scripts.forEach(s => {
+                                const newScript = doc.createElement('script');
+                                Array.from(s.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                                newScript.textContent = s.textContent;
+                                s.parentNode.replaceChild(newScript, s);
+                            });
+                            iframe.contentWindow.scrollTo(scrollX, scrollY);
+                        } catch (e) {
+                            iframe.srcdoc = rawText;
+                        }
+                    } else {
+                        iframe.srcdoc = rawText;
+                    }
+                    iframe._lastText = rawText;
+                    iframe.dataset.loaded = 'true';
                 }
             } else {
                 previewContent.classList.replace('block', 'hidden');
@@ -235,7 +259,147 @@
                 });
             }
 
-            element.innerHTML = htmlText;
+            // Create tempDiv and parse HTML wrapper
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = htmlText;
+
+            // Pre-process tempDiv to avoid UI toggle transition fighting
+            const currentCodeBlocks = Array.from(element.querySelectorAll('.rounded-xl'));
+            const newCodeBlocks = Array.from(tempDiv.querySelectorAll('.rounded-xl'));
+
+            for (let index = 0; index < currentCodeBlocks.length && index < newCodeBlocks.length; index++) {
+                const cb = currentCodeBlocks[index];
+                const newCb = newCodeBlocks[index];
+                const isPreview = cb.querySelector('.preview-view-content')?.classList.contains('block');
+
+                if (isPreview) {
+                    const toggleContainer = newCb.querySelector('.bg-\\[\\#111111\\]');
+                    if (toggleContainer) {
+                        const buttons = toggleContainer.querySelectorAll('button');
+                        buttons.forEach(b => {
+                            b.classList.remove('bg-[#353535]', 'text-white', 'shadow-sm', 'active-toggle');
+                            b.classList.add('text-gray-400');
+                        });
+                        if (buttons[1]) {
+                            buttons[1].classList.add('bg-[#353535]', 'text-white', 'shadow-sm', 'active-toggle');
+                            buttons[1].classList.remove('text-gray-400');
+                        }
+                    }
+                    const codeContent = newCb.querySelector('.code-view-content');
+                    if (codeContent) codeContent.classList.replace('block', 'hidden');
+                    const previewContent = newCb.querySelector('.preview-view-content');
+                    if (previewContent) previewContent.classList.replace('hidden', 'block');
+                }
+            }
+
+            function syncDOM(target, source) {
+                if (target.nodeType !== source.nodeType) {
+                    target.replaceWith(source.cloneNode(true));
+                    return;
+                }
+                if (target.nodeType === Node.TEXT_NODE || target.nodeType === Node.COMMENT_NODE) {
+                    if (target.nodeValue !== source.nodeValue) {
+                        target.nodeValue = source.nodeValue;
+                    }
+                    return;
+                }
+                if (target.nodeName !== source.nodeName) {
+                    target.replaceWith(source.cloneNode(true));
+                    return;
+                }
+                if (target.nodeName === 'IFRAME') {
+                    return;
+                }
+
+                const tAttrs = target.attributes;
+                const sAttrs = source.attributes;
+                const sNames = new Set(Array.from(sAttrs).map(a => a.name));
+                for (let i = tAttrs.length - 1; i >= 0; i--) {
+                    if (!sNames.has(tAttrs[i].name)) {
+                        target.removeAttribute(tAttrs[i].name);
+                    }
+                }
+                for (let i = 0; i < sAttrs.length; i++) {
+                    const s = sAttrs[i];
+                    if (target.getAttribute(s.name) !== s.value) {
+                        target.setAttribute(s.name, s.value);
+                    }
+                }
+
+                if (target.nodeName === 'TEXTAREA') {
+                    if (target.value !== source.value) {
+                        target.value = source.value;
+                    }
+                    return;
+                }
+
+                const tChild = Array.from(target.childNodes);
+                const sChild = Array.from(source.childNodes);
+                const max = Math.max(tChild.length, sChild.length);
+                for (let i = 0; i < max; i++) {
+                    if (!tChild[i]) {
+                        target.appendChild(sChild[i].cloneNode(true));
+                    } else if (!sChild[i]) {
+                        target.removeChild(tChild[i]);
+                    } else {
+                        syncDOM(tChild[i], sChild[i]);
+                    }
+                }
+            }
+
+            // Sync children of element instead of element itself
+            const tChild = Array.from(element.childNodes);
+            const sChild = Array.from(tempDiv.childNodes);
+            const max = Math.max(tChild.length, sChild.length);
+            for (let i = 0; i < max; i++) {
+                if (!tChild[i]) {
+                    element.appendChild(sChild[i].cloneNode(true));
+                } else if (!sChild[i]) {
+                    element.removeChild(tChild[i]);
+                } else {
+                    syncDOM(tChild[i], sChild[i]);
+                }
+            }
+
+            // Update IFrames without flash
+            const resultingCodeBlocks = Array.from(element.querySelectorAll('.rounded-xl'));
+            resultingCodeBlocks.forEach((cb) => {
+                const previewContent = cb.querySelector('.preview-view-content');
+                if (!previewContent) return;
+
+                const iframe = previewContent.querySelector('iframe');
+                const rawCodeHolder = previewContent.querySelector('.raw-code-holder');
+                const rawText = rawCodeHolder ? decodeURIComponent(rawCodeHolder.value) : '';
+                const isPreview = previewContent.classList.contains('block');
+
+                if (iframe && isPreview && iframe._lastText !== rawText) {
+                    const doc = iframe.contentDocument;
+                    if (doc) {
+                        const scrollX = iframe.contentWindow.scrollX || 0;
+                        const scrollY = iframe.contentWindow.scrollY || 0;
+
+                        try {
+                            const newDoc = new DOMParser().parseFromString(rawText, 'text/html');
+                            doc.documentElement.innerHTML = newDoc.documentElement.innerHTML;
+                            // Scripts injected via innerHTML don't run. We must manually re-execute them.
+                            const scripts = doc.documentElement.querySelectorAll('script');
+                            scripts.forEach(s => {
+                                const newScript = doc.createElement('script');
+                                Array.from(s.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                                newScript.textContent = s.textContent;
+                                s.parentNode.replaceChild(newScript, s);
+                            });
+                            iframe.contentWindow.scrollTo(scrollX, scrollY);
+                        } catch (e) {
+                            iframe.srcdoc = rawText;
+                        }
+                    } else {
+                        iframe.srcdoc = rawText;
+                    }
+                    iframe._lastText = rawText;
+                    iframe.dataset.loaded = 'true';
+                }
+            });
         }
     </script>
     <style>
