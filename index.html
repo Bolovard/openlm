@@ -2159,9 +2159,9 @@
 
         <!-- Add Custom Model Modal -->
         <div id="add-model-modal"
-            class="hidden fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm items-center justify-center p-4"
+            class="hidden fixed inset-0 z-[200] bg-black/60 backdrop-blur-none items-center justify-center p-4"
             data-modal-close="closeAddModelModal">
-            <div class="bg-gpt-sidebar border border-gpt-border rounded-2xl w-full max-w-[460px] max-h-[95vh] flex flex-col shadow-2xl overflow-hidden text-gpt-text"
+            <div class="bg-[#171717] border border-[rgba(255,255,255,0.15)] rounded-2xl w-full max-w-[460px] max-h-[95vh] flex flex-col shadow-2xl overflow-hidden text-[#ececec]"
                 onclick="event.stopPropagation()">
 
                 <!-- Modal Header -->
@@ -2191,22 +2191,22 @@
                         machine or network.</p>
                 </div>
 
-                <div class="border-t border-gpt-border shrink-0"></div>
+                <div class="border-t border-[rgba(255,255,255,0.08)] shrink-0"></div>
 
                 <!-- Form Fields -->
                 <div class="space-y-4 px-6 pt-5 pb-2 text-[14px] overflow-y-auto min-h-0">
                     <div>
                         <label class="block text-sm font-medium mb-1">Display Name</label>
                         <input type="text" id="custom-model-name" placeholder="e.g. My Local Llama"
-                            class="w-full bg-gpt-input border border-gpt-border rounded-lg px-3 py-2 outline-none focus:border-gpt-accent transition-colors text-gpt-text placeholder-gpt-muted text-sm">
+                            class="w-full bg-[#2a2a2a] border border-[rgba(255,255,255,0.08)] rounded-lg px-3 py-2 outline-none focus:border-gpt-accent transition-colors text-white placeholder-gpt-muted text-sm">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Model</label>
                         <div class="relative flex gap-2">
                             <input type="text" id="custom-model-id" placeholder="Type or fetch models below"
-                                class="flex-1 bg-gpt-input border border-gpt-border rounded-lg px-3 py-2 outline-none focus:border-gpt-accent transition-colors text-gpt-text placeholder-gpt-muted text-sm">
+                                class="flex-1 bg-[#2a2a2a] border border-[rgba(255,255,255,0.08)] rounded-lg px-3 py-2 outline-none focus:border-gpt-accent transition-colors text-white placeholder-gpt-muted text-sm">
                             <button type="button" id="fetch-models-btn" onclick="toggleModelPicker()"
-                                class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gpt-input border border-gpt-border text-gpt-text text-xs font-medium hover:bg-gpt-hover transition-colors whitespace-nowrap flex-shrink-0">
+                                class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#2a2a2a] border border-[rgba(255,255,255,0.08)] text-white text-xs font-medium hover:bg-[#353535] transition-colors whitespace-nowrap flex-shrink-0">
                                 <i class="fa-solid fa-rotate text-xs" id="fetch-models-icon"></i>
                                 <span id="fetch-models-label">Fetch Models</span>
                             </button>
@@ -2215,7 +2215,7 @@
                         <div id="model-picker-wrap" class="model-picker-wrap">
                             <div class="model-picker-inner">
                                 <div id="model-picker"
-                                    class="mt-1.5 overflow-y-auto rounded-lg border border-gpt-border bg-gpt-input model-picker-list">
+                                    class="mt-1.5 overflow-y-auto rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#2a2a2a] model-picker-list">
                                     <!-- populated by JS -->
                                 </div>
                             </div>
@@ -2254,8 +2254,8 @@
                                 class="provider-chip text-xs px-2.5 py-1 rounded-full border border-gpt-border bg-gpt-input hover:bg-gpt-hover transition-colors text-gpt-text">llama.cpp</button>
                         </div>
                         <input type="text" id="custom-model-url" placeholder="http://localhost:11434/v1"
-                            class="w-full bg-gpt-input border border-gpt-border rounded-lg px-3 py-2 outline-none focus:border-gpt-accent transition-colors text-gpt-text placeholder-gpt-muted text-sm">
-                        <p class="text-xs text-gpt-muted mt-1" id="url-hint">Full API base URL ending before <code
+                            class="w-full bg-[#2a2a2a] border border-[rgba(255,255,255,0.08)] rounded-lg px-3 py-2 outline-none focus:border-gpt-accent transition-colors text-white placeholder-gpt-muted text-sm">
+                        <p class="text-xs text-[#a3a3a3] mt-1" id="url-hint">Full API base URL ending before <code
                                 class="font-mono bg-black/10 dark:bg-white/10 px-1 rounded">/chat/completions</code></p>
                     </div>
                     <!-- API Key (only required for cloud) -->
@@ -2265,7 +2265,7 @@
                         </label>
                         <div class="relative">
                             <input type="password" id="custom-model-key" placeholder="sk-..."
-                                class="w-full bg-gpt-input border border-gpt-border rounded-lg px-3 py-2 pr-10 outline-none focus:border-gpt-accent transition-colors text-gpt-text placeholder-gpt-muted text-sm"
+                                class="w-full bg-[#2a2a2a] border border-[rgba(255,255,255,0.08)] rounded-lg px-3 py-2 pr-10 outline-none focus:border-gpt-accent transition-colors text-white placeholder-gpt-muted text-sm"
                                 oninput="scheduleModelRefresh()">
                             <button type="button" onclick="toggleApiKeyVisibility()"
                                 class="absolute right-2.5 top-1/2 -translate-y-1/2 text-gpt-muted hover:text-gpt-text transition-colors"
@@ -2278,11 +2278,11 @@
                 </div>
 
                 <!-- Actions -->
-                <div class="flex justify-end gap-3 px-6 py-5 shrink-0 border-t border-gpt-border">
+                <div class="flex justify-end gap-3 px-6 py-5 shrink-0 border-t border-[rgba(255,255,255,0.08)]">
                     <button onclick="closeAddModelModal()"
-                        class="px-4 py-2 rounded-lg border border-gpt-border font-medium text-sm hover:bg-gpt-hover transition-colors">Cancel</button>
+                        class="px-4 py-2 rounded-lg border border-[rgba(255,255,255,0.15)] bg-transparent font-medium text-sm hover:bg-[rgba(255,255,255,0.05)] text-[#ececec] transition-colors">Cancel</button>
                     <button onclick="saveCustomModel()" id="save-model-btn"
-                        class="px-4 py-2 rounded-lg bg-gpt-text text-gpt-main font-medium text-sm transition-colors border-none shadow-sm hover:opacity-90 flex items-center gap-2">
+                        class="px-4 py-2 rounded-lg bg-white text-black font-medium text-sm transition-colors border-none shadow-sm hover:bg-gray-200 flex items-center gap-2">
                         <i class="fa-solid fa-plus text-xs"></i> Add Model
                     </button>
                 </div>
