@@ -3192,7 +3192,7 @@
             }
 
             // Append Math/KaTeX formatting instruction
-            const katexInstruction = "When providing mathematical equations or expressions, you MUST format them strictly using KaTeX markdown. Use `$$` for block equations and `\\(` and `\\)` for inline math. Do NOT announce, state, or explain that you are using KaTeX, or that you are formatting the output for the user. Just seamlessly integrate the math into your natural response.";
+            const katexInstruction = "CRITICAL RULE: DO NOT use, mention, or create any mathematics, equations, or formulas unless the user's prompt is explicitly about math or science. Never use math for analogies or casual conversation. ONLY if the user's prompt requires a mathematical answer, format your equations strictly using KaTeX markdown (`$$` for block, `\\(` and `\\)` for inline) without announcing it.";
             sysContent += (sysContent ? '\n\n' : '') + katexInstruction;
 
             if (sysContent) {
