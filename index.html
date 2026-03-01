@@ -1037,11 +1037,10 @@
             max-width: 900px;
             height: 78vh;
             max-height: 720px;
-            background: var(--gpt-sidebar);
-            border: 1px solid var(--gpt-border);
-            border-radius: 18px;
+            background: #171717;
+            border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 10px 30px rgba(0, 0, 0, 0.5);
         }
 
         .notes-sidebar {
@@ -1049,8 +1048,8 @@
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
-            border-right: 1px solid var(--gpt-border);
-            background: var(--gpt-sidebar);
+            border-right: none;
+            background: #1e1e1e;
         }
 
         .notes-sidebar-header {
@@ -1058,7 +1057,7 @@
             align-items: center;
             justify-content: space-between;
             padding: 0 16px;
-            border-bottom: 1px solid var(--gpt-border);
+            border-bottom: none;
             height: 52px;
             box-sizing: border-box;
             flex-shrink: 0;
@@ -1146,7 +1145,7 @@
             align-items: center;
             justify-content: space-between;
             padding: 0 20px;
-            border-bottom: 1px solid var(--gpt-border);
+            border-bottom: none;
             flex-shrink: 0;
             height: 52px;
             box-sizing: border-box;
@@ -1204,27 +1203,12 @@
             align-items: center;
             gap: 3px;
             padding: 8px 14px;
-            border-bottom: 1px solid var(--gpt-border);
-            background: var(--gpt-sidebar);
+            border-bottom: none;
+            background: #171717;
             flex-shrink: 0;
             overflow: visible;
             flex-wrap: wrap;
             position: relative;
-        }
-
-        .notes-toolbar::after {
-            content: '';
-            position: absolute;
-            bottom: -1px;
-            left: 0;
-            right: 0;
-            height: 6px;
-            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.03), transparent);
-            pointer-events: none;
-        }
-
-        .dark .notes-toolbar::after {
-            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.12), transparent);
         }
 
         .notes-toolbar-group {
@@ -1287,9 +1271,8 @@
         .notes-toolbar-divider {
             width: 1px;
             height: 18px;
-            background: var(--gpt-border);
+            background: rgba(255, 255, 255, 0.15);
             margin: 0 6px;
-            opacity: 0.6;
             border-radius: 1px;
         }
 
@@ -2291,14 +2274,14 @@
 
         <!-- Notes Modal -->
         <div id="notes-modal"
-            class="hidden fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm items-center justify-center p-4"
+            class="hidden fixed inset-0 z-[200] bg-black/60 backdrop-blur-none items-center justify-center p-4"
             data-modal-close="closeNotesModal">
             <div class="notes-modal-card" onclick="event.stopPropagation(); dismissNotesContextMenu();"
                 style="position:relative;">
 
                 <!-- Close button (top-right corner) -->
                 <button onclick="closeNotesModal()"
-                    class="absolute top-3 right-3 text-gpt-muted hover:text-gpt-text w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gpt-hover transition-colors z-10"
+                    class="absolute top-3 right-3 text-[#ececec] hover:text-white w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[rgba(255,255,255,0.05)] transition-colors z-10"
                     title="Close">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
