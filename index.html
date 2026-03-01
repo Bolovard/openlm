@@ -3084,21 +3084,22 @@
             // Include all prior messages from the current chat so the model
             // remembers what has been discussed in this session.
             const conversationHistory = [];
-            if (customSystemPrompt && customSystemPrompt.trim()) {
-                let sysContent = customSystemPrompt.trim();
-                // Append language instruction to system prompt if non-English
-                if (currentLang !== 'en-US' && currentLang !== 'en-UK') {
-                    const langNames = { 'es': 'Spanish', 'fr': 'French', 'de': 'German', 'zh': 'Chinese', 'ja': 'Japanese' };
-                    if (langNames[currentLang]) {
-                        sysContent += `\n\nIMPORTANT: You MUST formulate your entire response in ${langNames[currentLang].toUpperCase()}.`;
-                    }
-                }
-                conversationHistory.push({ role: 'system', content: sysContent });
-            } else if (currentLang !== 'en-US' && currentLang !== 'en-UK') {
+            let sysContent = (customSystemPrompt && customSystemPrompt.trim()) ? customSystemPrompt.trim() : "";
+
+            // Append language instruction to system prompt if non-English
+            if (currentLang !== 'en-US' && currentLang !== 'en-UK') {
                 const langNames = { 'es': 'Spanish', 'fr': 'French', 'de': 'German', 'zh': 'Chinese', 'ja': 'Japanese' };
                 if (langNames[currentLang]) {
-                    conversationHistory.push({ role: 'system', content: `You MUST formulate your entire response in ${langNames[currentLang].toUpperCase()}.` });
+                    sysContent += (sysContent ? '\n\n' : '') + `IMPORTANT: You MUST formulate your entire response in ${langNames[currentLang].toUpperCase()}.`;
                 }
+            }
+
+            // Append Math/KaTeX formatting instruction
+            const katexInstruction = "When providing mathematical equations or expressions, you MUST format them strictly using KaTeX markdown. Use `$$` for block equations and `\\(` and `\\)` for inline math. Do NOT announce, state, or explain that you are using KaTeX, or that you are formatting the output for the user. Just seamlessly integrate the math into your natural response.";
+            sysContent += (sysContent ? '\n\n' : '') + katexInstruction;
+
+            if (sysContent) {
+                conversationHistory.push({ role: 'system', content: sysContent });
             }
 
             // Add all prior messages (everything except the latest user message we just pushed)
