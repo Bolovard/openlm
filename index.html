@@ -3727,17 +3727,30 @@
                             dotRemoved = true;
                         }
 
-                        typedText += tokenQueue[0];
-                        tokenQueue = tokenQueue.slice(1);
-                        renderDirty = true;
-
-                        const codeBlockMatches = typedText.match(/```/g);
-                        const isInsideCodeBlock = codeBlockMatches && codeBlockMatches.length % 2 !== 0;
-
-                        if (isInsideCodeBlock) {
-                            await new Promise(r => setTimeout(r, 1 + Math.random() * 2));
+                        // If backgrounded, consume everything currently in the queue at once 
+                        // to prevent artificial typing delays being throttled by the browser.
+                        if (document.hidden) {
+                            typedText += tokenQueue;
+                            tokenQueue = '';
+                            renderMarkdownAndMath(streamContent, typedText);
+                            scrollToBottom(true);
                         } else {
-                            await new Promise(r => setTimeout(r, 6 + Math.random() * 6));
+                            typedText += tokenQueue[0];
+                            tokenQueue = tokenQueue.slice(1);
+                            renderDirty = true;
+                        }
+
+                        if (!document.hidden) {
+                            const codeBlockMatches = typedText.match(/```/g);
+                            const isInsideCodeBlock = codeBlockMatches && codeBlockMatches.length % 2 !== 0;
+                            if (isInsideCodeBlock) {
+                                await new Promise(r => setTimeout(r, 1 + Math.random() * 2));
+                            } else {
+                                await new Promise(r => setTimeout(r, 6 + Math.random() * 6));
+                            }
+                        } else {
+                            // Yield briefly to keep main thread responsive even in background
+                            await new Promise(r => setTimeout(r, 0));
                         }
 
                     } else if (streamDone) {
