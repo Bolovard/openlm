@@ -158,6 +158,42 @@
                 btn.innerHTML = originalHTML;
             }, 3000);
         };
+
+        window.openCitationsSidebar = function (sources) {
+            const sidebar = document.getElementById('citations-sidebar');
+            const overlay = document.getElementById('citations-overlay');
+            const list = document.getElementById('citations-list');
+            if (!sidebar || !overlay || !list) return;
+
+            list.innerHTML = '';
+            sources.forEach(src => {
+                const item = document.createElement('div');
+                item.className = 'citation-item';
+                item.onclick = () => window.open(src.href, '_blank');
+                item.innerHTML = `
+                    <div class="citation-source-info">
+                        <div class="citation-item-icon">
+                            <img src="https://www.google.com/s2/favicons?domain=${src.domain}&sz=32">
+                        </div>
+                        <span>${src.domain}</span>
+                    </div>
+                    <div class="citation-title">${src.title}</div>
+                `;
+                list.appendChild(item);
+            });
+
+            sidebar.classList.add('active');
+            overlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        };
+
+        window.closeCitationsSidebar = function () {
+            const sidebar = document.getElementById('citations-sidebar');
+            const overlay = document.getElementById('citations-overlay');
+            if (sidebar) sidebar.classList.remove('active');
+            if (overlay) overlay.classList.remove('active');
+            document.body.style.overflow = '';
+        };
     </script>
 
     <script>
@@ -230,6 +266,11 @@
                 return PH(mathBlocks.length - 1);
             });
 
+            // ── 2.5 Pre-link plain URLs so marked treats them as links ──────────────────
+            // Regex to find http/https URLs not already in markdown links or other blocks
+            const urlRegex = /((?<!\()|(?<=\s))https?:\/\/[^\s<]+(?![^<]*>|[^[]*\])/gi;
+            text = text.replace(urlRegex, (url) => `[${url}](${url})`);
+
             // Parse markdown on the protected text
             let htmlText = marked.parse(text);
 
@@ -284,39 +325,53 @@
             });
 
             const links = tempDiv.querySelectorAll('a');
+            const detailedSources = [];
+            const uniqueHrefs = new Set();
+
             links.forEach(a => {
                 if (isAssistant) {
                     a.setAttribute('target', '_blank');
-                    // Highlight links using a soft blue tailwind shade
-                    a.className = 'text-[#3b82f6] font-medium hover:underline';
-                    a.style.textUnderlineOffset = '2px';
+
+                    const href = a.href;
+                    let domain = '';
+                    try {
+                        domain = new URL(href).hostname.replace('www.', '');
+                    } catch (e) { domain = href; }
+
+                    if (!uniqueHrefs.has(href)) {
+                        uniqueHrefs.add(href);
+                        detailedSources.push({
+                            href: href,
+                            domain: domain,
+                            title: a.textContent.trim() || domain
+                        });
+                    }
 
                     // If the link is isolated on its own line/paragraph, convert to a rich embed block
                     const p = a.parentElement;
-                    if (p && p.tagName === 'P' && p.textContent.trim() === a.textContent.trim()) {
-                        try {
-                            const urlObj = new URL(a.href);
-                            const domain = urlObj.hostname;
+                    const isIsolated = p && p.tagName === 'P' && p.textContent.trim() === a.textContent.trim();
 
+                    if (isIsolated) {
+                        try {
                             // Check if it's an image URL for a specialized image embed
-                            if (isImageUrl(a.href)) {
+                            if (isImageUrl(href)) {
                                 p.outerHTML = `
-                                    <div class="rounded-xl overflow-hidden border border-gpt-border mt-2 mb-2 max-w-full md:max-w-[500px] shadow-sm cursor-pointer hover:opacity-95 transition-opacity" onclick="window.open('${a.href}', '_blank')">
-                                        <img src="${a.href}" class="w-full h-auto block" />
+                                    <div class="rounded-xl overflow-hidden border border-gpt-border mt-2 mb-2 max-w-full md:max-w-[500px] shadow-sm cursor-pointer hover:opacity-95 transition-opacity" onclick="window.open('${href}', '_blank')">
+                                        <img src="${href}" class="w-full h-auto block" />
                                     </div>
                                 `;
                                 return;
                             }
 
-                            // Build an OpenGraph style preview block using standard Tailwind classes used in this project
+                            // Build an OpenGraph style preview block
                             const embedHtml = `
-                                <div class="flex items-center gap-3 bg-black/5 dark:bg-white/5 border border-gpt-border rounded-xl px-3 py-2 mt-2 mb-2 max-w-[400px] cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors" onclick="window.open('${a.href}', '_blank')">
+                                <div class="flex items-center gap-3 bg-black/5 dark:bg-white/5 border border-gpt-border rounded-xl px-3 py-2 mt-2 mb-2 max-w-[400px] cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors" onclick="window.open('${href}', '_blank')">
                                     <div class="w-10 h-10 bg-white dark:bg-[#2a2a2a] flex items-center justify-center rounded-lg flex-shrink-0 border border-gpt-border overflow-hidden">
                                         <img src="https://www.google.com/s2/favicons?domain=${domain}&sz=64" class="w-6 h-6 object-contain" onerror="this.style.display='none'">
                                     </div>
                                     <div class="flex flex-col min-w-0 flex-1">
                                         <span class="text-sm font-semibold truncate text-gpt-text">${domain}</span>
-                                        <span class="text-xs text-gpt-muted truncate">${a.href}</span>
+                                        <span class="text-xs text-gpt-muted truncate">${href}</span>
                                     </div>
                                     <div class="w-6 h-6 flex items-center justify-center text-gpt-muted">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -329,13 +384,55 @@
                         } catch (e) {
                             // ignore invalid urls
                         }
+                    } else {
+                        // It's a citation or inline link.
+                        // Format it as a small pill with the domain name.
+                        a.className = 'citation-pill';
+                        const displayDomain = domain.length > 15 ? domain.substring(0, 13) + '...' : domain;
+                        a.innerHTML = displayDomain;
+                        a.style.textDecoration = 'none';
                     }
                 } else {
-                    // For user messages, remove the link wrapper entirely so it's just plain text
+                    // For user messages, remove the link wrapper entirely
                     const textNode = document.createTextNode(a.textContent);
                     a.parentNode.replaceChild(textNode, a);
                 }
             });
+
+            // Add Sources Footer if there are any links
+            const actionButtons = element.parentNode?.querySelector('.action-buttons-container');
+            if (actionButtons) {
+                const existingSources = actionButtons.querySelector('.sources-section');
+                if (existingSources) existingSources.remove();
+
+                if (isAssistant && detailedSources.length > 0) {
+                    const sourcesDiv = document.createElement('div');
+                    sourcesDiv.className = 'sources-section';
+                    sourcesDiv.style.marginLeft = 'auto'; // Push to the right
+                    sourcesDiv.style.marginTop = '0'; // Align with buttons
+                    sourcesDiv.style.cursor = 'pointer';
+                    sourcesDiv.style.userSelect = 'none';
+
+                    sourcesDiv.onclick = (e) => {
+                        e.stopPropagation();
+                        window.openCitationsSidebar(detailedSources);
+                    };
+
+                    let sourcesHtml = '';
+                    // Show up to 3 icons as seen in the reference image
+                    detailedSources.slice(0, 3).forEach(src => {
+                        sourcesHtml += `
+                            <div class="source-icon">
+                                <img src="https://www.google.com/s2/favicons?domain=${src.domain}&sz=32" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\'%3E%3Cpath fill=\'%23888\' d=\'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z\'/%3E%3C/svg%3E'">
+                            </div>
+                        `;
+                    });
+
+                    sourcesHtml += `<span style="margin-left: 4px; opacity: 1; font-size: 13.5px; font-weight: 500;">Sources</span>`;
+                    sourcesDiv.innerHTML = sourcesHtml;
+                    actionButtons.appendChild(sourcesDiv);
+                }
+            }
             // --------------------------------
 
             // Pre-process tempDiv to avoid UI toggle transition fighting
@@ -800,7 +897,7 @@
             display: flex;
             align-items: center;
             width: 100%;
-            padding: 7px 12px;
+            padding: 8px 12px;
             font-size: 13px;
             cursor: pointer;
             text-align: left;
@@ -808,6 +905,8 @@
             border: none;
             color: var(--gpt-text);
             transition: background 0.15s;
+            border-radius: 8px;
+            margin-bottom: 2px;
         }
 
         .model-picker-item:hover {
@@ -816,6 +915,204 @@
 
         html.dark .model-picker-item:hover {
             background: rgba(255, 255, 255, 0.07);
+        }
+
+        .citation-pill {
+            display: inline-flex;
+            align-items: center;
+            font-size: 11px;
+            background: rgba(128, 128, 128, 0.1);
+            color: var(--gpt-muted);
+            padding: 1px 7px;
+            border-radius: 12px;
+            margin-left: 4px;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            vertical-align: middle;
+            text-decoration: none !important;
+            border: 1px solid rgba(128, 128, 128, 0.1);
+        }
+
+        .citation-pill:hover {
+            background: rgba(128, 128, 128, 0.2);
+            color: var(--gpt-text);
+        }
+
+        .sources-section {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--gpt-muted);
+            font-size: 12px;
+            font-weight: 500;
+            user-select: none;
+            border: 1px solid transparent;
+        }
+
+        .sources-section:hover {
+            background: #2a2a2a;
+            color: #ffffff !important;
+        }
+
+        html.dark .sources-section:hover {
+            background: #2a2a2a;
+        }
+
+        /* Light mode fallback for hover if needed */
+        html:not(.dark) .sources-section:hover {
+            background: #e5e5e5;
+            color: #111111 !important;
+        }
+
+        .source-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            overflow: hidden;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .source-icon img {
+            width: 10px;
+            height: 10px;
+            object-fit: contain;
+        }
+
+        /* Citations Sidebar */
+        .citations-sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 9998;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease;
+        }
+
+        .citations-sidebar-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .citations-sidebar {
+            position: fixed;
+            top: 0;
+            right: -360px;
+            width: 360px;
+            height: 100%;
+            background: var(--gpt-sidebar);
+            border-left: 1px solid var(--gpt-border);
+            z-index: 9999;
+            transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .citations-sidebar.active {
+            right: 0;
+        }
+
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--gpt-border);
+        }
+
+        .sidebar-header h2 {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .close-sidebar-btn {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            color: var(--gpt-muted);
+        }
+
+        .close-sidebar-btn:hover {
+            background-color: var(--gpt-hover);
+            color: var(--gpt-text);
+        }
+
+        .citations-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .citation-item {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 24px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 12px;
+            transition: background-color 0.2s;
+        }
+
+        .citation-item:hover {
+            background-color: var(--gpt-hover);
+        }
+
+        .citation-source-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--gpt-muted);
+        }
+
+        .citation-item-icon {
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .citation-item-icon img {
+            width: 12px;
+            height: 12px;
+            object-fit: contain;
+        }
+
+        .citation-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--gpt-text);
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
 
         .model-picker-item.selected {
@@ -5376,6 +5673,15 @@
 
 
     </script>
+    <!-- Citations Sidebar -->
+    <div id="citations-overlay" class="citations-sidebar-overlay" onclick="closeCitationsSidebar()"></div>
+    <div id="citations-sidebar" class="citations-sidebar">
+        <div class="sidebar-header">
+            <h2>Sources</h2>
+            <div class="close-sidebar-btn" onclick="closeCitationsSidebar()"><i class="fa-solid fa-xmark"></i></div>
+        </div>
+        <div id="citations-list" class="citations-list"></div>
+    </div>
 </body>
 
 </html>
