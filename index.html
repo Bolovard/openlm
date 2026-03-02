@@ -264,6 +264,25 @@
 
             // ----- EMBED AND LINK STYLING -----
             const isAssistant = element.closest('[data-role="assistant"]') !== null;
+
+            // Helper to check for image URLs
+            const isImageUrl = (url) => {
+                return /\.(jpg|jpeg|png|gif|webp|svg|bmp)(\?.*)?$/i.test(url) || url.startsWith('data:image/');
+            };
+
+            // Style standard markdown images (![alt](url))
+            const imgs = tempDiv.querySelectorAll('img');
+            imgs.forEach(img => {
+                if (isAssistant) {
+                    img.className = 'rounded-xl border border-gpt-border mt-2 mb-2 max-w-full md:max-w-[500px] shadow-sm cursor-pointer hover:opacity-95 transition-opacity h-auto block';
+                    img.onclick = () => window.open(img.src, '_blank');
+                } else {
+                    // Stripping for consistency with user link stripping from previous task
+                    const textNode = document.createTextNode(`[Image: ${img.alt || 'Untitled'}]`);
+                    img.parentNode.replaceChild(textNode, img);
+                }
+            });
+
             const links = tempDiv.querySelectorAll('a');
             links.forEach(a => {
                 if (isAssistant) {
@@ -278,6 +297,17 @@
                         try {
                             const urlObj = new URL(a.href);
                             const domain = urlObj.hostname;
+
+                            // Check if it's an image URL for a specialized image embed
+                            if (isImageUrl(a.href)) {
+                                p.outerHTML = `
+                                    <div class="rounded-xl overflow-hidden border border-gpt-border mt-2 mb-2 max-w-full md:max-w-[500px] shadow-sm cursor-pointer hover:opacity-95 transition-opacity" onclick="window.open('${a.href}', '_blank')">
+                                        <img src="${a.href}" class="w-full h-auto block" />
+                                    </div>
+                                `;
+                                return;
+                            }
+
                             // Build an OpenGraph style preview block using standard Tailwind classes used in this project
                             const embedHtml = `
                                 <div class="flex items-center gap-3 bg-black/5 dark:bg-white/5 border border-gpt-border rounded-xl px-3 py-2 mt-2 mb-2 max-w-[400px] cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors" onclick="window.open('${a.href}', '_blank')">
@@ -3629,28 +3659,29 @@
             msgDiv.dataset.role = role;
             msgDiv.className = 'w-full py-4 text-gpt-text flex flex-col group mx-auto max-w-3xl px-4 md:px-5';
 
-            if (role === 'user') {
-                // Build attachment embeds HTML
-                let attachHtml = '';
-                if (attachments && attachments.length > 0) {
-                    const embeds = attachments.map(att => {
-                        if (att.imageUrl) {
-                            return `<div class="rounded-xl overflow-hidden max-w-[260px] border border-gpt-border"><img src="${att.imageUrl}" alt="${att.name}" class="w-full h-auto rounded-xl" /></div>`;
-                        } else {
-                            return `<div class="flex items-center gap-3 bg-black/5 dark:bg-white/5 border border-gpt-border rounded-xl px-3 py-2.5 max-w-[260px]">
-                                <div class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style="background: ${att.color}22; color: ${att.color};">
-                                    <i class="${att.icon} text-base"></i>
-                                </div>
-                                <div class="flex flex-col min-w-0">
-                                    <span class="text-sm font-medium truncate">${att.name}</span>
-                                    <span class="text-xs text-gpt-muted">${att.type}</span>
-                                </div>
-                            </div>`;
-                        }
-                    }).join('');
-                    attachHtml = `<div class="flex flex-wrap gap-2 mb-2 justify-end">${embeds}</div>`;
-                }
+            // Build attachment embeds HTML
+            let attachHtml = '';
+            if (attachments && attachments.length > 0) {
+                const embeds = attachments.map(att => {
+                    if (att.imageUrl) {
+                        return `<div class="rounded-xl overflow-hidden max-w-[260px] border border-gpt-border"><img src="${att.imageUrl}" alt="${att.name}" class="w-full h-auto rounded-xl" /></div>`;
+                    } else {
+                        return `<div class="flex items-center gap-3 bg-black/5 dark:bg-white/5 border border-gpt-border rounded-xl px-3 py-2.5 max-w-[260px]">
+                            <div class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style="background: ${att.color}22; color: ${att.color};">
+                                <i class="${att.icon} text-base"></i>
+                            </div>
+                            <div class="flex flex-col min-w-0">
+                                <span class="text-sm font-medium truncate">${att.name}</span>
+                                <span class="text-xs text-gpt-muted">${att.type}</span>
+                            </div>
+                        </div>`;
+                    }
+                }).join('');
+                const justifyClass = role === 'user' ? 'justify-end' : 'justify-start';
+                attachHtml = `<div class="flex flex-wrap gap-2 mb-2 ${justifyClass}">${embeds}</div>`;
+            }
 
+            if (role === 'user') {
                 const hasText = content && content.trim().length > 0;
                 const textBubble = hasText ? `<div class="bg-[#f0f0f0] dark:bg-[#2f2f2f] text-gpt-text px-5 py-2.5 rounded-[20px] max-w-[70%] whitespace-pre-wrap break-words inline-block selectable"><div class="markdown-body flex flex-col leading-relaxed text-[15px] max-w-full overflow-hidden !bg-transparent !p-0"></div></div>` : '';
 
@@ -3664,6 +3695,7 @@
                 msgDiv.innerHTML = `
                     <div class="flex items-start w-full">
                         <div class="flex-1 overflow-visible selectable flex flex-col min-w-0">
+                            ${attachHtml}
                             <div class="markdown-body leading-relaxed text-[15px] max-w-full overflow-hidden break-words !bg-transparent !p-0"></div>
                             <div class="flex items-center gap-1 mt-2 self-start action-buttons-container text-gpt-muted">
                                 <button onclick="copyMessageText(this)" class="action-icon w-8 h-8 rounded flex items-center justify-center hover:bg-gpt-hover hover:text-gpt-text p-1.5 focus:outline-none transition-colors" title="Copy">
@@ -3686,7 +3718,6 @@
 
             chatMessages.appendChild(msgDiv);
             const contentContainer = msgDiv.querySelector('.markdown-body');
-            const actionContainer = msgDiv.querySelector('.action-buttons-container');
 
             // typeOut is kept for backward-compat (loading old history) but no longer used for live generation
             renderMarkdownAndMath(contentContainer, content);
