@@ -159,6 +159,27 @@
             }, 3000);
         };
 
+        window.toggleCitationsSidebar = function (sources, btn) {
+            const sidebar = document.getElementById('citations-sidebar');
+            if (!sidebar) return;
+
+            const isActive = sidebar.classList.contains('active');
+
+            // If it's the same button and it's active, close it
+            if (isActive && sidebar._currentBtn === btn) {
+                window.closeCitationsSidebar();
+                return;
+            }
+
+            // Otherwise, open with new sources
+            window.openCitationsSidebar(sources);
+            sidebar._currentBtn = btn;
+
+            // Highlight the button
+            document.querySelectorAll('.sources-section').forEach(s => s.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+        };
+
         window.openCitationsSidebar = function (sources) {
             const sidebar = document.getElementById('citations-sidebar');
             const overlay = document.getElementById('citations-overlay');
@@ -173,7 +194,7 @@
                 item.innerHTML = `
                     <div class="citation-source-info">
                         <div class="citation-item-icon">
-                            <img src="https://www.google.com/s2/favicons?domain=${src.domain}&sz=64">
+                            <img src="https://www.google.com/s2/favicons?domain=${src.domain}&sz=64" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\'%3E%3Cpath fill=\'%23888\' d=\'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z\'/%3E%3C/svg%3E'">
                         </div>
                         <span>${src.domain}</span>
                     </div>
@@ -189,8 +210,12 @@
         window.closeCitationsSidebar = function () {
             const sidebar = document.getElementById('citations-sidebar');
             const overlay = document.getElementById('citations-overlay');
-            if (sidebar) sidebar.classList.remove('active');
+            if (sidebar) {
+                sidebar.classList.remove('active');
+                sidebar._currentBtn = null;
+            }
             if (overlay) overlay.classList.remove('active');
+            document.querySelectorAll('.sources-section').forEach(s => s.classList.remove('active'));
         };
     </script>
 
@@ -264,11 +289,6 @@
                 return PH(mathBlocks.length - 1);
             });
 
-            // ── 2.5 Pre-link plain URLs so marked treats them as links ──────────────────
-            // Regex to find http/https URLs not already in markdown links or other blocks
-            const urlRegex = /((?<!\()|(?<=\s))https?:\/\/[^\s<]+(?![^<]*>|[^[]*\])/gi;
-            text = text.replace(urlRegex, (url) => `[${url}](${url})`);
-
             // Parse markdown on the protected text
             let htmlText = marked.parse(text);
 
@@ -301,12 +321,30 @@
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = htmlText;
 
+            // Remove nested links (marked sometimes double-links autolinked URLs in markdown links)
+            tempDiv.querySelectorAll('a a').forEach(nested => {
+                nested.replaceWith(nested.textContent);
+            });
+
             // ----- EMBED AND LINK STYLING -----
             const isAssistant = element.closest('[data-role="assistant"]') !== null;
 
             // Helper to check for image URLs
             const isImageUrl = (url) => {
                 return /\.(jpg|jpeg|png|gif|webp|svg|bmp)(\?.*)?$/i.test(url) || url.startsWith('data:image/');
+            };
+
+            // Aggressive URL normalization for deduplication
+            const normalizeUrl = (u) => {
+                try {
+                    const url = new URL(u);
+                    const host = url.hostname.toLowerCase().replace(/^www\./, '');
+                    const path = url.pathname.replace(/\/+$/, '') || '/';
+                    // We normalize to https for comparison if it's http, and strip trailing slash
+                    return `${url.protocol.replace('http:', 'https:')}//${host}${path}${url.search}`;
+                } catch (e) {
+                    return u.toLowerCase().replace(/\/+$/, '');
+                }
             };
 
             // Style standard markdown images (![alt](url))
@@ -328,22 +366,28 @@
 
             links.forEach(a => {
                 if (isAssistant) {
-                    a.setAttribute('target', '_blank');
-
                     const href = a.href;
+                    const normalizedHref = normalizeUrl(href);
+
+                    // If we've already seen this URL in this message, remove the redundant link
+                    if (uniqueHrefs.has(normalizedHref)) {
+                        const textNode = document.createTextNode(a.textContent);
+                        a.parentNode.replaceChild(textNode, a);
+                        return;
+                    }
+                    uniqueHrefs.add(normalizedHref);
+
+                    a.setAttribute('target', '_blank');
                     let domain = '';
                     try {
                         domain = new URL(href).hostname.replace('www.', '');
-                    } catch (e) { domain = href; }
+                    } catch (e) { domain = normalizedHref; }
 
-                    if (!uniqueHrefs.has(href)) {
-                        uniqueHrefs.add(href);
-                        detailedSources.push({
-                            href: href,
-                            domain: domain,
-                            title: a.textContent.trim() || domain
-                        });
-                    }
+                    detailedSources.push({
+                        href: href,
+                        domain: domain,
+                        title: a.textContent.trim() || domain
+                    });
 
                     // If the link is isolated on its own line/paragraph, convert to a rich embed block
                     const p = a.parentElement;
@@ -365,7 +409,7 @@
                             const embedHtml = `
                                 <div class="flex items-center gap-3 bg-black/5 dark:bg-white/5 border border-gpt-border rounded-xl px-3 py-2 mt-2 mb-2 max-w-[400px] cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors" onclick="window.open('${href}', '_blank')">
                                     <div class="w-10 h-10 bg-white dark:bg-[#2a2a2a] flex items-center justify-center rounded-lg flex-shrink-0 border border-gpt-border overflow-hidden">
-                                        <img src="https://www.google.com/s2/favicons?domain=${domain}&sz=64" class="w-6 h-6 object-contain" onerror="this.style.display='none'">
+                                        <img src="https://www.google.com/s2/favicons?domain=${domain}&sz=64" class="w-6 h-6 object-contain" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\'%3E%3Cpath fill=\'%23888\' d=\'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z\'/%3E%3C/svg%3E'">
                                     </div>
                                     <div class="flex flex-col min-w-0 flex-1">
                                         <span class="text-sm font-semibold truncate text-gpt-text">${domain}</span>
@@ -412,7 +456,7 @@
 
                     sourcesDiv.onclick = (e) => {
                         e.stopPropagation();
-                        window.openCitationsSidebar(detailedSources);
+                        window.toggleCitationsSidebar(detailedSources, sourcesDiv);
                     };
 
                     let sourcesHtml = '';
@@ -964,17 +1008,21 @@
             border: 1px solid transparent;
         }
 
-        .sources-section:hover {
+        .sources-section:hover,
+        .sources-section.active {
             background: #2a2a2a;
             color: #ffffff !important;
+            border-color: rgba(255, 255, 255, 0.1);
         }
 
-        html.dark .sources-section:hover {
+        html.dark .sources-section:hover,
+        html.dark .sources-section.active {
             background: #2a2a2a;
         }
 
         /* Light mode fallback for hover if needed */
-        html:not(.dark) .sources-section:hover {
+        html:not(.dark) .sources-section:hover,
+        html:not(.dark) .sources-section.active {
             background: #e5e5e5;
             color: #111111 !important;
         }
@@ -1001,6 +1049,18 @@
         /* Citations Sidebar */
         .citations-sidebar-overlay {
             display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+            z-index: 9998;
+        }
+
+        .citations-sidebar-overlay.active {
+            display: block;
         }
 
         .citations-sidebar {
