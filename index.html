@@ -173,7 +173,7 @@
                 item.innerHTML = `
                     <div class="citation-source-info">
                         <div class="citation-item-icon">
-                            <img src="https://www.google.com/s2/favicons?domain=${src.domain}&sz=32">
+                            <img src="https://www.google.com/s2/favicons?domain=${src.domain}&sz=64">
                         </div>
                         <span>${src.domain}</span>
                     </div>
@@ -183,8 +183,7 @@
             });
 
             sidebar.classList.add('active');
-            overlay.classList.add('active');
-            document.body.style.overflow = 'hidden';
+            if (overlay) overlay.classList.add('active');
         };
 
         window.closeCitationsSidebar = function () {
@@ -192,7 +191,6 @@
             const overlay = document.getElementById('citations-overlay');
             if (sidebar) sidebar.classList.remove('active');
             if (overlay) overlay.classList.remove('active');
-            document.body.style.overflow = '';
         };
     </script>
 
@@ -920,7 +918,7 @@
             display: inline-flex;
             align-items: center;
             font-size: 11px;
-            background: rgba(128, 128, 128, 0.15);
+            background: rgba(128, 128, 128, 0.12);
             color: #ffffff !important;
             padding: 1px 8px;
             border-radius: 12px;
@@ -929,12 +927,11 @@
             transition: background 0.2s, transform 0.1s;
             vertical-align: middle;
             text-decoration: none !important;
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border: 1px solid transparent;
         }
 
         .citation-pill:hover {
-            background: rgba(128, 128, 128, 0.2);
-            color: var(--gpt-text);
+            background: rgba(128, 128, 128, 0.25);
         }
 
         .sources-section {
@@ -988,21 +985,7 @@
 
         /* Citations Sidebar */
         .citations-sidebar-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.4);
-            z-index: 9998;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease;
-        }
-
-        .citations-sidebar-overlay.active {
-            opacity: 1;
-            visibility: visible;
+            display: none;
         }
 
         .citations-sidebar {
@@ -1011,13 +994,14 @@
             right: -360px;
             width: 360px;
             height: 100%;
-            background: var(--gpt-sidebar);
+            background: var(--gpt-main);
             border-left: 1px solid var(--gpt-border);
             z-index: 9999;
             transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             flex-direction: column;
-            box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.15);
+            color: var(--gpt-text);
         }
 
         .citations-sidebar.active {
@@ -1064,24 +1048,54 @@
         .citation-item {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 4px;
             margin-bottom: 24px;
             cursor: pointer;
-            padding: 8px;
-            border-radius: 12px;
-            transition: background-color 0.2s;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background-color 0.15s;
         }
 
         .citation-item:hover {
-            background-color: var(--gpt-hover);
+            background-color: rgba(255, 255, 255, 0.05);
         }
 
         .citation-source-info {
             display: flex;
             align-items: center;
             gap: 8px;
-            font-size: 12px;
+            font-size: 13px;
             color: var(--gpt-muted);
+            margin-bottom: 2px;
+        }
+
+        .citation-item-icon {
+            width: 16px;
+            height: 16px;
+            background: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .citation-item-icon img {
+            width: 16px;
+            height: 16px;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+
+        .citation-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--gpt-text);
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
 
         .citation-item-icon {
@@ -4109,6 +4123,7 @@
 
             // Clear hover state in sidebar array
             renderChatList();
+            window.closeCitationsSidebar();
         }
 
         function loadChat(id) {
@@ -4147,6 +4162,7 @@
 
             renderChatList(); // Refresh sidebar highlighting
             updateSendButtonState();
+            window.closeCitationsSidebar();
         }
 
         function renderChatList() {
@@ -5676,7 +5692,7 @@
     <div id="citations-overlay" class="citations-sidebar-overlay" onclick="closeCitationsSidebar()"></div>
     <div id="citations-sidebar" class="citations-sidebar">
         <div class="sidebar-header">
-            <h2>Sources</h2>
+            <h2>Citations</h2>
             <div class="close-sidebar-btn" onclick="closeCitationsSidebar()"><i class="fa-solid fa-xmark"></i></div>
         </div>
         <div id="citations-list" class="citations-list"></div>
