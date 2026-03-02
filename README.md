@@ -1,7 +1,22 @@
-# Disclaimer
+# ⚠️ Disclaimer
 
-This single HTML relies on external endpoints for parsing and markdown!
+> **Important:**  
+> This single HTML file relies on **external CDN endpoints** for parsing and Markdown rendering.
 
+### What This Means
+
+- Markdown parsing is loaded from a CDN  
+- Math rendering (KaTeX) is loaded from a CDN  
+- Syntax highlighting is loaded from a CDN  
+- Styling (TailwindCSS) is loaded from a CDN  
+
+If you go offline and these files are not cached, certain features **will not function properly**.
+
+---
+
+### To Make It Fully Offline
+
+Download all external dependencies locally and replace CDN links with local file paths.
 
 # Local -- AI Chat Interface (Frontend Only)
 
