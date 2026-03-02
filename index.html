@@ -590,6 +590,9 @@
                         try {
                             const newDoc = new DOMParser().parseFromString(rawText, 'text/html');
                             doc.documentElement.innerHTML = newDoc.documentElement.innerHTML;
+                            // Ensure links in assistant messages are clickable
+                            doc.querySelectorAll('a').forEach(a => a.setAttribute('target', '_blank'));
+
                             // Scripts injected via innerHTML don't run. We must manually re-execute them.
                             const scripts = doc.documentElement.querySelectorAll('script');
                             scripts.forEach(s => {
@@ -1954,11 +1957,10 @@
             margin-bottom: 8px;
         }
 
-        .notes-editor ol {
-            list-style-type: decimal;
-            list-style-position: inside;
-            padding-left: 0;
-            margin-bottom: 8px;
+        .notes-editor a {
+            color: #ffffff !important;
+            text-decoration: underline !important;
+            cursor: pointer !important;
         }
 
         .notes-editor li {
@@ -1971,6 +1973,178 @@
             padding: 0;
             margin-top: 0;
             margin-bottom: 0;
+        }
+
+        /* ── Notes Link Popup ────────────────────────────────────────── */
+        .notes-link-popup {
+            position: fixed;
+            background: #ffffff;
+            border: 1px solid #d4d4d4;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+            padding: 8px;
+            z-index: 1000;
+            width: 380px;
+            display: none;
+            color: #3c4043;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            animation: notePopupFadeIn 0.2s cubic-bezier(0, 0, 0.2, 1);
+        }
+
+        .dark .notes-link-popup {
+            background: #2a2a2a;
+            border-color: #424242;
+            color: #e8eaed;
+        }
+
+        @keyframes notePopupFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-8px) scale(0.98);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .notes-link-input-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+            margin-bottom: 4px;
+        }
+
+        .notes-link-input-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f1f3f4;
+            padding: 0 12px;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            flex: 1;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s;
+        }
+
+        .dark .notes-link-input-wrap {
+            background: #3c4043;
+            box-shadow: none;
+        }
+
+        .notes-link-input-wrap:focus-within {
+            background: #ffffff;
+        }
+
+        .dark .notes-link-input-wrap:focus-within {
+            background: #202124;
+        }
+
+        .notes-link-input-wrap input {
+            background: transparent;
+            border: none;
+            outline: none;
+            flex: 1;
+            font-size: 14px;
+            padding: 10px 0;
+            color: inherit;
+        }
+
+        .notes-link-apply-btn {
+            color: #1a73e8;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 10px 16px;
+            border-radius: 8px;
+            transition: background 0.2s;
+            user-select: none;
+        }
+
+        .notes-link-apply-btn:hover {
+            background: rgba(26, 115, 232, 0.1);
+        }
+
+        .notes-link-apply-btn.disabled {
+            color: #9aa0a6;
+            cursor: default;
+            pointer-events: none;
+        }
+
+        .notes-link-suggestions {
+            display: flex;
+            flex-direction: column;
+            margin-top: 4px;
+            padding-top: 4px;
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .dark .notes-link-suggestions {
+            border-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .notes-link-suggestion-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 14px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.15s;
+        }
+
+        .notes-link-suggestion-item:hover {
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        .dark .notes-link-suggestion-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .notes-link-suggestion-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #5f6368;
+            font-size: 14px;
+        }
+
+        .dark .notes-link-suggestion-icon {
+            color: #9aa0a6;
+        }
+
+        .notes-link-suggestion-info {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .notes-link-suggestion-title {
+            font-size: 14px;
+            font-weight: 400;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: inherit;
+        }
+
+        .notes-link-suggestion-url {
+            font-size: 12px;
+            color: #5f6368;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 1px;
+        }
+
+        .dark .notes-link-suggestion-url {
+            color: #9aa0a6;
         }
 
         .notes-editor h1,
@@ -2896,6 +3070,8 @@
                                     title="Underline"><i class="fa-solid fa-underline"></i></button>
                                 <button onclick="execNoteCmd('strikeThrough')" class="notes-toolbar-btn"
                                     title="Strikethrough"><i class="fa-solid fa-strikethrough"></i></button>
+                                <button onpointerdown="toggleNoteLinkPopup(event)" class="notes-toolbar-btn"
+                                    title="Insert Link"><i class="fa-solid fa-link"></i></button>
                             </div>
                             <div class="notes-toolbar-divider"></div>
                             <!-- List group -->
@@ -2966,8 +3142,23 @@
             <div class="px-1.5 pb-1 pt-0.5">
                 <button onclick="notesContextDelete()"
                     class="w-full text-left px-3 py-2 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-500 hover:text-red-600 dark:hover:text-red-400 flex items-center gap-3 rounded-lg transition-colors cursor-pointer outline-none">
-                    <i class="fa-solid fa-trash text-xs"></i> Delete
+                    <i class="fa-solid fa-trash text-xs"></i> Delete note
                 </button>
+            </div>
+        </div>
+
+        <!-- Notes Link Popup -->
+        <div id="note-link-popup" class="notes-link-popup" onclick="event.stopPropagation()">
+            <div class="notes-link-input-group">
+                <div class="notes-link-input-wrap">
+                    <i class="fa-solid fa-magnifying-glass text-gpt-muted text-[13px]"></i>
+                    <input type="text" id="note-link-input" placeholder="Search or paste a link" autocomplete="off"
+                        onkeydown="if(event.key === 'Enter') applyNoteLink()">
+                </div>
+                <div id="note-link-apply-btn" onclick="applyNoteLink()" class="notes-link-apply-btn disabled">Apply
+                </div>
+            </div>
+            <div class="notes-link-suggestions">
             </div>
         </div>
     </div>
@@ -5221,6 +5412,18 @@
             document.querySelectorAll('.notes-list-item').forEach(el => {
                 el.classList.toggle('active', el.dataset.noteId === id);
             });
+
+            // Make sure links are clickable
+            document.getElementById('notes-editor').querySelectorAll('a').forEach(a => {
+                a.onclick = (e) => {
+                    if (e.ctrlKey || !document.getElementById('notes-editor').contentEditable) {
+                        window.open(a.href, '_blank');
+                    }
+                    // For standard click during edit, we let the user edit the link text, 
+                    // but we'll add a hover tooltip or something if needed. 
+                    // To follow "is clickable", we'll make simple click work if they click the edge or similar
+                };
+            });
         }
 
         function showNotesEmptyState() {
@@ -5679,6 +5882,7 @@
         // Alignment dropdown logic
         function toggleNoteAlignmentDropdown(event) {
             event.stopPropagation();
+            dismissNotesPopups();
             const dropdown = document.getElementById('note-alignment-dropdown');
             const arrow = document.getElementById('note-alignment-arrow');
             const isHidden = dropdown.classList.contains('hidden');
@@ -5691,6 +5895,163 @@
                 if (arrow) arrow.style.transform = 'rotate(0deg)';
             }
         }
+
+        // ── Note Link Logic ──────────────────────────────────────────────
+        let _noteLastSelectionRange = null;
+
+        function toggleNoteLinkPopup(event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const popup = document.getElementById('note-link-popup');
+            const isVisible = popup.style.display === 'block';
+
+            dismissNotesPopups();
+
+            if (!isVisible) {
+                // Save selection range if it's inside the editor
+                const sel = window.getSelection();
+                if (sel.rangeCount > 0) {
+                    const range = sel.getRangeAt(0);
+                    const editor = document.getElementById('notes-editor');
+                    if (editor.contains(range.commonAncestorContainer)) {
+                        _noteLastSelectionRange = range.cloneRange();
+                    }
+                }
+
+                const btnRect = event.currentTarget.getBoundingClientRect();
+                popup.style.display = 'block';
+                popup.style.left = Math.min(window.innerWidth - 400, btnRect.left) + 'px';
+                popup.style.top = (btnRect.bottom + 10) + 'px';
+
+                const input = document.getElementById('note-link-input');
+                input.value = '';
+                document.getElementById('note-link-apply-btn').classList.add('disabled');
+
+                setTimeout(() => input.focus(), 10);
+
+                // Track input for apply button state
+                input.oninput = () => {
+                    const btn = document.getElementById('note-link-apply-btn');
+                    if (input.value.trim().length > 0) btn.classList.remove('disabled');
+                    else btn.classList.add('disabled');
+                };
+            }
+        }
+
+        function applyNoteLink() {
+            const input = document.getElementById('note-link-input');
+            const url = input.value.trim();
+            if (!url) return;
+
+            insertNoteLink(url);
+            dismissNotesPopups();
+        }
+
+        function applyNoteLinkSuggestion(url, type) {
+            insertNoteLink(url);
+            dismissNotesPopups();
+        }
+
+        function insertNoteLink(url) {
+            const editor = document.getElementById('notes-editor');
+            editor.focus();
+
+            if (_noteLastSelectionRange) {
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(_noteLastSelectionRange);
+            }
+
+            let formattedUrl = url;
+            if (url && !url.startsWith('http') && !url.startsWith('/') && !url.startsWith('#')) {
+                formattedUrl = 'https://' + url;
+            }
+
+            document.execCommand('createLink', false, formattedUrl);
+
+            // Set target _blank and ensure white color
+            const sel = window.getSelection();
+            if (sel.anchorNode) {
+                let node = sel.anchorNode;
+                if (node.nodeType === 3) node = node.parentNode;
+                if (node.tagName === 'A') {
+                    node.setAttribute('target', '_blank');
+                    node.style.color = '#ffffff';
+                    node.style.textDecoration = 'underline';
+                } else {
+                    // Sometimes it wraps multiple nodes
+                    const links = editor.querySelectorAll('a[href="' + formattedUrl + '"]');
+                    links.forEach(l => {
+                        l.setAttribute('target', '_blank');
+                        l.style.color = '#ffffff';
+                        l.style.textDecoration = 'underline';
+                    });
+                }
+            }
+
+            handleNoteEditorInput();
+            _noteLastSelectionRange = null;
+        }
+
+        function dismissNotesPopups() {
+            const drops = [
+                'note-textsize-dropdown',
+                'note-font-dropdown',
+                'note-alignment-dropdown',
+                'note-link-popup'
+            ];
+            drops.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    if (el.classList.contains('notes-alignment-dropdown') || el.classList.contains('notes-textsize-dropdown') || el.classList.contains('notes-font-dropdown')) {
+                        el.classList.add('hidden');
+                    } else {
+                        el.style.display = 'none';
+                    }
+                }
+            });
+
+            const arrows = ['note-textsize-arrow', 'note-font-arrow', 'note-alignment-arrow'];
+            arrows.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.transform = 'rotate(0deg)';
+            });
+
+            const inputArea = document.getElementById('note-textsize-display');
+            const inputField = document.getElementById('note-textsize-input');
+            if (inputArea && inputField) {
+                inputArea.classList.remove('hidden');
+                inputField.classList.add('hidden');
+            }
+        }
+        // Apply global dismiss on click
+        document.addEventListener('mousedown', (e) => {
+            const modals = ['.notes-link-popup', '.notes-alignment-dropdown', '.notes-textsize-dropdown', '.notes-font-dropdown'];
+            let inside = false;
+            modals.forEach(selector => {
+                if (e.target.closest(selector)) inside = true;
+            });
+            // If clicking a toolbar button, don't dismiss here (let the button handler toggle)
+            if (e.target.closest('.notes-toolbar-btn') || e.target.closest('.notes-alignment-select') || e.target.closest('.notes-textsize-select') || e.target.closest('.notes-font-select')) {
+                return;
+            }
+            if (!inside) dismissNotesPopups();
+        });
+
+        // Make links clickable in notes editor
+        document.getElementById('notes-editor').addEventListener('click', (e) => {
+            const link = e.target.closest('a');
+            if (link && document.getElementById('notes-editor').contains(link)) {
+                // Check if we are selecting text - if so, don't open
+                const sel = window.getSelection();
+                if (sel.toString().length > 0) return;
+
+                window.open(link.href, '_blank');
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        });
 
         function selectNoteAlignment(alignment) {
             const alignmentMap = {
