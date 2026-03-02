@@ -3258,7 +3258,12 @@
             const katexInstruction = "CRITICAL RULE: DO NOT use, mention, or create any mathematics, equations, or formulas unless the user's prompt is explicitly about math or science. Never use math for analogies or casual conversation. ONLY if the user's prompt requires a mathematical answer, format your equations strictly using KaTeX markdown (`$$` for block, `\\(` and `\\)` for inline) without announcing it.";
             sysContent += (sysContent ? '\n\n' : '') + katexInstruction;
 
-            if (sysContent) {
+            // Broad check for models/endpoints that often reject the 'system' role ("Developer instructions")
+            const modelNameLower = (activeEndpoint.model || '').toLowerCase();
+            const endpointUrlLower = (activeEndpoint.url || '').toLowerCase();
+            const isGoogleModel = modelNameLower.includes('gemini') || modelNameLower.includes('gemma') || endpointUrlLower.includes('generativelanguage.googleapis.com');
+
+            if (sysContent && !isGoogleModel) {
                 conversationHistory.push({ role: 'system', content: sysContent });
             }
 
@@ -3270,8 +3275,39 @@
                 }
             }
 
+            // Handle models that don't support system instructions: merge into the FIRST user message
+            let currentUserContent = openaiContentParts ?? modelInputText;
+            if (isGoogleModel && sysContent) {
+                let firstUserMsg = conversationHistory.find(m => m.role === 'user');
+                if (firstUserMsg) {
+                    // Prepend to the very first user message in stored history
+                    if (typeof firstUserMsg.content === 'string') {
+                        firstUserMsg.content = `[System Instructions]\n${sysContent}\n\n[End System Instructions]\n\n${firstUserMsg.content}`;
+                    } else if (Array.isArray(firstUserMsg.content)) {
+                        const textPart = firstUserMsg.content.find(p => p.type === 'text');
+                        if (textPart) {
+                            textPart.text = `[System Instructions]\n${sysContent}\n\n[End System Instructions]\n\n${textPart.text}`;
+                        } else {
+                            firstUserMsg.content.unshift({ type: 'text', text: `[System Instructions]\n${sysContent}\n\n` });
+                        }
+                    }
+                } else {
+                    // Prepend to the current user message (if this is the start of the chat)
+                    if (typeof currentUserContent === 'string') {
+                        currentUserContent = `[System Instructions]\n${sysContent}\n\n[End System Instructions]\n\n${currentUserContent}`;
+                    } else if (Array.isArray(currentUserContent)) {
+                        const textPart = currentUserContent.find(p => p.type === 'text');
+                        if (textPart) {
+                            textPart.text = `[System Instructions]\n${sysContent}\n\n[End System Instructions]\n\n${textPart.text}`;
+                        } else {
+                            currentUserContent.unshift({ type: 'text', text: `[System Instructions]\n${sysContent}\n\n` });
+                        }
+                    }
+                }
+            }
+
             // Add the current user message (with image parts if applicable)
-            conversationHistory.push({ role: 'user', content: openaiContentParts ?? modelInputText });
+            conversationHistory.push({ role: 'user', content: currentUserContent });
 
             // ── Helper: consume a ReadableStream line-by-line ──────────────────────
             async function* streamLines(reader) {
