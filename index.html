@@ -741,13 +741,13 @@
 
         .markdown-body h1 {
             font-size: 1.6em;
-            border-bottom: 1px solid var(--gpt-border);
+            border-bottom: 1px solid rgba(128, 128, 128, 0.15);
             padding-bottom: 0.3em;
         }
 
         .markdown-body h2 {
             font-size: 1.4em;
-            border-bottom: 1px solid var(--gpt-border);
+            border-bottom: 1px solid rgba(128, 128, 128, 0.15);
             padding-bottom: 0.3em;
         }
 
@@ -800,22 +800,28 @@
         .markdown-body table {
             border-collapse: collapse;
             width: 100%;
-            margin-bottom: 1rem;
-            font-size: 0.9em;
+            margin-bottom: 1.5rem;
+            font-size: 0.95em;
             overflow-x: auto;
-            display: block;
+            border: none;
         }
 
         .markdown-body th,
         .markdown-body td {
-            border: 1px solid rgba(128, 128, 128, 0.15);
-            padding: 0.6em 1em;
+            border-bottom: 1px solid rgba(128, 128, 128, 0.15);
+            padding: 0.8em 1em;
             text-align: left;
         }
 
         .markdown-body th {
-            background-color: var(--gpt-hover);
+            background-color: transparent;
             font-weight: 600;
+            color: var(--gpt-text);
+            border-bottom: 2px solid rgba(128, 128, 128, 0.2);
+        }
+
+        .markdown-body tr:last-child td {
+            border-bottom: none;
         }
 
         .markdown-body a {
