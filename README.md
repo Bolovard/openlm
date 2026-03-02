@@ -1,3 +1,8 @@
+# Disclaimer
+
+This single HTML relies on external endpoints for parsing and markdown!
+
+
 # Local -- AI Chat Interface (Frontend Only)
 
 A fully client-side ChatGPT-style interface built with pure HTML,
