@@ -408,7 +408,6 @@
                 if (isAssistant && detailedSources.length > 0) {
                     const sourcesDiv = document.createElement('div');
                     sourcesDiv.className = 'sources-section';
-                    sourcesDiv.style.marginLeft = 'auto'; // Push to the right
                     sourcesDiv.style.marginTop = '0'; // Align with buttons
                     sourcesDiv.style.cursor = 'pointer';
                     sourcesDiv.style.userSelect = 'none';
@@ -921,16 +920,16 @@
             display: inline-flex;
             align-items: center;
             font-size: 11px;
-            background: rgba(128, 128, 128, 0.1);
-            color: var(--gpt-muted);
-            padding: 1px 7px;
+            background: rgba(128, 128, 128, 0.15);
+            color: #ffffff !important;
+            padding: 1px 8px;
             border-radius: 12px;
             margin-left: 4px;
             cursor: pointer;
-            transition: background 0.2s, color 0.2s;
+            transition: background 0.2s, transform 0.1s;
             vertical-align: middle;
             text-decoration: none !important;
-            border: 1px solid rgba(128, 128, 128, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .citation-pill:hover {
