@@ -1949,14 +1949,28 @@
 
         .notes-editor ul {
             list-style-type: disc;
-            padding-left: 20px;
+            list-style-position: inside;
+            padding-left: 0;
             margin-bottom: 8px;
         }
 
         .notes-editor ol {
             list-style-type: decimal;
-            padding-left: 20px;
+            list-style-position: inside;
+            padding-left: 0;
             margin-bottom: 8px;
+        }
+
+        .notes-editor li {
+            margin-bottom: 4px;
+        }
+
+        .notes-editor blockquote {
+            margin-left: 24px;
+            border-left: none;
+            padding: 0;
+            margin-top: 0;
+            margin-bottom: 0;
         }
 
         .notes-editor h1,
@@ -2924,8 +2938,12 @@
                         </div>
                         <div id="notes-editor" class="notes-editor" contenteditable="true"
                             data-placeholder="Start writing..." oninput="handleNoteEditorInput()"
-                            onkeyup="updateNoteToolbar()" onmouseup="updateNoteToolbar()"
-                            onkeydown="if(event.key === 'Tab') { event.preventDefault(); document.execCommand('insertHTML', false, '&nbsp;&nbsp;&nbsp;&nbsp;'); handleNoteEditorInput(event); }">
+                            onkeyup="updateNoteToolbar()" onmouseup="updateNoteToolbar()" onkeydown="if(event.key === 'Tab') { 
+                                event.preventDefault(); 
+                                if(event.shiftKey) { document.execCommand('outdent'); }
+                                else { document.execCommand('indent'); }
+                                handleNoteEditorInput(event); 
+                            }">
                         </div>
                     </div>
                     <div id="notes-empty-state" class="notes-empty-state">
