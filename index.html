@@ -5719,15 +5719,14 @@
         function toggleNoteTextSizeDropdown(event) {
             event.stopPropagation();
             const dropdown = document.getElementById('note-textsize-dropdown');
-            const arrow = document.getElementById('note-textsize-arrow');
             const isHidden = dropdown.classList.contains('hidden');
+
+            dismissNotesPopups();
 
             if (isHidden) {
                 dropdown.classList.remove('hidden');
+                const arrow = document.getElementById('note-textsize-arrow');
                 if (arrow) arrow.style.transform = 'rotate(180deg)';
-            } else {
-                dropdown.classList.add('hidden');
-                if (arrow) arrow.style.transform = 'rotate(0deg)';
             }
         }
 
@@ -5815,15 +5814,14 @@
         function toggleNoteFontDropdown(event) {
             event.stopPropagation();
             const dropdown = document.getElementById('note-font-dropdown');
-            const arrow = document.getElementById('note-font-arrow');
             const isHidden = dropdown.classList.contains('hidden');
+
+            dismissNotesPopups();
 
             if (isHidden) {
                 dropdown.classList.remove('hidden');
+                const arrow = document.getElementById('note-font-arrow');
                 if (arrow) arrow.style.transform = 'rotate(180deg)';
-            } else {
-                dropdown.classList.add('hidden');
-                if (arrow) arrow.style.transform = 'rotate(0deg)';
             }
         }
 
@@ -5861,38 +5859,19 @@
             updateNoteToolbar();
         }
 
-        // Close font dropdown on click outside
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('.notes-font-select')) return;
-            const dropdown = document.getElementById('note-font-dropdown');
-            if (dropdown) dropdown.classList.add('hidden');
-            const arrow = document.getElementById('note-font-arrow');
-            if (arrow) arrow.style.transform = 'rotate(0deg)';
-        }, true);
-
-        // Close text-size dropdown on click outside
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('.notes-textsize-select')) return;
-            const dropdown = document.getElementById('note-textsize-dropdown');
-            if (dropdown) dropdown.classList.add('hidden');
-            const arrow = document.getElementById('note-textsize-arrow');
-            if (arrow) arrow.style.transform = 'rotate(0deg)';
-        }, true);
 
         // Alignment dropdown logic
         function toggleNoteAlignmentDropdown(event) {
             event.stopPropagation();
-            dismissNotesPopups();
             const dropdown = document.getElementById('note-alignment-dropdown');
-            const arrow = document.getElementById('note-alignment-arrow');
             const isHidden = dropdown.classList.contains('hidden');
+
+            dismissNotesPopups();
 
             if (isHidden) {
                 dropdown.classList.remove('hidden');
+                const arrow = document.getElementById('note-alignment-arrow');
                 if (arrow) arrow.style.transform = 'rotate(180deg)';
-            } else {
-                dropdown.classList.add('hidden');
-                if (arrow) arrow.style.transform = 'rotate(0deg)';
             }
         }
 
@@ -6120,14 +6099,6 @@
             }
         }
 
-        // Close alignment dropdown on click outside
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('.notes-alignment-select')) return;
-            const dropdown = document.getElementById('note-alignment-dropdown');
-            if (dropdown) dropdown.classList.add('hidden');
-            const arrow = document.getElementById('note-alignment-arrow');
-            if (arrow) arrow.style.transform = 'rotate(0deg)';
-        }, true);
 
         // Update updateNoteToolbar to include alignment icon update
         const originalUpdateNoteToolbar = updateNoteToolbar;
