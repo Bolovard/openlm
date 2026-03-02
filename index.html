@@ -182,9 +182,8 @@
 
         window.openCitationsSidebar = function (sources) {
             const sidebar = document.getElementById('citations-sidebar');
-            const overlay = document.getElementById('citations-overlay');
             const list = document.getElementById('citations-list');
-            if (!sidebar || !overlay || !list) return;
+            if (!sidebar || !list) return;
 
             list.innerHTML = '';
             sources.forEach(src => {
@@ -204,17 +203,14 @@
             });
 
             sidebar.classList.add('active');
-            if (overlay) overlay.classList.add('active');
         };
 
         window.closeCitationsSidebar = function () {
             const sidebar = document.getElementById('citations-sidebar');
-            const overlay = document.getElementById('citations-overlay');
             if (sidebar) {
                 sidebar.classList.remove('active');
                 sidebar._currentBtn = null;
             }
-            if (overlay) overlay.classList.remove('active');
             document.querySelectorAll('.sources-section').forEach(s => s.classList.remove('active'));
         };
     </script>
@@ -1048,19 +1044,8 @@
 
         /* Citations Sidebar */
         .citations-sidebar-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.4);
-            backdrop-filter: blur(4px);
-            z-index: 9998;
-        }
-
-        .citations-sidebar-overlay.active {
-            display: block;
+            display: none !important;
+            pointer-events: none;
         }
 
         .citations-sidebar {
@@ -1075,7 +1060,7 @@
             transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             flex-direction: column;
-            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.15);
+            box-shadow: -1px 0 10px rgba(0, 0, 0, 0.1);
             color: var(--gpt-text);
         }
 
