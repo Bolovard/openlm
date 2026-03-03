@@ -2383,6 +2383,72 @@
             }
         }
 
+        /* ── Web Search Toggle ───────────────────────────────────────── */
+        .web-search-btn.active {
+            background: rgba(59, 130, 246, 0.12);
+            color: #3b82f6;
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        .dark .web-search-btn.active {
+            background: rgba(96, 165, 250, 0.15);
+            color: #60a5fa;
+            border-color: rgba(96, 165, 250, 0.3);
+        }
+
+        .web-search-btn.active:hover {
+            background: rgba(59, 130, 246, 0.2);
+        }
+
+        .dark .web-search-btn.active:hover {
+            background: rgba(96, 165, 250, 0.25);
+        }
+
+        .web-search-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #3b82f6;
+            padding: 3px 10px;
+            border-radius: 999px;
+            background: rgba(59, 130, 246, 0.08);
+            margin-bottom: 6px;
+            animation: searchPulse 1.5s ease-in-out infinite;
+        }
+
+        .dark .web-search-indicator {
+            color: #60a5fa;
+            background: rgba(96, 165, 250, 0.1);
+        }
+
+        @keyframes searchPulse {
+
+            0%,
+            100% {
+                opacity: 0.7;
+            }
+
+            50% {
+                opacity: 1;
+            }
+        }
+
+        .web-search-indicator i {
+            font-size: 11px;
+            animation: searchSpin 1.2s linear infinite;
+        }
+
+        @keyframes searchSpin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
         /* ── End Notes Modal ────────────────────────────────────────── */
     </style>
 </head>
@@ -2555,14 +2621,14 @@
                     <!-- Attachments Display Container -->
                     <div id="attachments-container" class="hidden w-full flex-wrap gap-2 px-4 pt-3 pb-0"></div>
 
-                    <div class="flex items-end w-full relative">
+                    <div class="flex items-center w-full relative pr-12">
                         <!-- File Upload Hidden Input -->
                         <input type="file" id="file-upload" class="hidden" multiple aria-hidden="true"
                             onchange="handleFileUpload(event)">
 
                         <button type="button" id="attach-btn" onclick="document.getElementById('file-upload').click()"
                             title="Attach files"
-                            class="p-2 ml-2 mb-1.5 text-gpt-muted hover:text-gpt-text hover:bg-gpt-border rounded-full transition-all h-[36px] w-[36px] flex items-center justify-center flex-shrink-0 cursor-pointer">
+                            class="p-2 ml-2 self-end mb-1.5 text-gpt-muted hover:text-gpt-text hover:bg-gpt-border rounded-full transition-all h-[36px] w-[36px] flex items-center justify-center flex-shrink-0 cursor-pointer">
                             <i class="fa-solid fa-plus text-lg"></i>
                         </button>
 
@@ -2571,12 +2637,22 @@
                             placeholder="Ask anything" rows="1" style="min-height: 48px;"
                             oninput="this.style.height = 'auto'; this.style.height = (this.scrollHeight) + 'px'; updateSendButtonState();"
                             onkeydown="if(event.key === 'Tab') { event.preventDefault(); const start = this.selectionStart; const end = this.selectionEnd; this.value = this.value.substring(0, start) + '    ' + this.value.substring(end); this.selectionStart = this.selectionEnd = start + 4; updateSendButtonState(); } else if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); handleSend(event); }"></textarea>
-
-                        <button type="submit" id="send-button" title="Send message" disabled
-                            class="mr-2 mb-2 bg-gpt-primary text-gpt-primaryText rounded-full h-9 w-9 flex items-center justify-center shrink-0 disabled:cursor-not-allowed transition-all opacity-30 hover:opacity-100">
-                            <i class="fa-solid fa-arrow-up text-sm"></i>
+                    </div>
+                    <!-- Bottom Toolbar -->
+                    <div class="flex items-center gap-1 px-3 pb-2 pt-0">
+                        <button type="button" id="web-search-toggle" onclick="toggleWebSearch()" title="Search the web"
+                            class="web-search-btn flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all cursor-pointer border border-transparent text-gpt-muted hover:text-gpt-text hover:bg-gpt-hover">
+                            <i class="fa-solid fa-globe text-[13px]"></i>
+                            <span>Search</span>
                         </button>
                     </div>
+
+                    <!-- Send Button - absolutely positioned, vertically centered in the form -->
+                    <button type="submit" id="send-button" title="Send message" disabled
+                        class="absolute right-3 top-1/2 -translate-y-1/2 bg-gpt-primary text-gpt-primaryText rounded-full h-9 w-9 flex items-center justify-center shrink-0 disabled:cursor-not-allowed transition-all opacity-30 hover:opacity-100"
+                        style="z-index: 5;">
+                        <i class="fa-solid fa-arrow-up text-sm"></i>
+                    </button>
                 </form>
                 <div class="text-center text-xs text-gpt-muted mt-3" data-i18n="local_notice">
                     AI responses may include errors. Verify all information before relying on it.
@@ -3189,6 +3265,1400 @@
             }
         }
         let generatingChats = {};
+        let webSearchEnabled = false;
+        let userLocation = null;
+
+        function toggleWebSearch() {
+            webSearchEnabled = !webSearchEnabled;
+            const btn = document.getElementById('web-search-toggle');
+            if (btn) btn.classList.toggle('active', webSearchEnabled);
+            if (webSearchEnabled && !userLocation) getUserLocation();
+        }
+
+        async function getUserLocation() {
+            if (!navigator.geolocation) return;
+            try {
+                const pos = await new Promise((ok, fail) =>
+                    navigator.geolocation.getCurrentPosition(ok, fail, { timeout: 8000, maximumAge: 300000 }));
+                const { latitude, longitude } = pos.coords;
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=10`,
+                    { headers: { 'Accept': 'application/json' } });
+                if (res.ok) {
+                    const data = await res.json();
+                    const a = data.address || {};
+                    userLocation = { lat: latitude, lon: longitude, city: a.city || a.town || a.village || '', state: a.state || '', country: a.country || '' };
+                } else {
+                    userLocation = { lat: latitude, lon: longitude, city: '', state: '', country: '' };
+                }
+            } catch { /* user denied */ }
+        }
+
+        // ── Weather via Open-Meteo (free, no key, CORS-enabled) ──────────
+        const WEATHER_CODES = { 0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast', 45: 'Fog', 48: 'Rime fog', 51: 'Light drizzle', 53: 'Drizzle', 55: 'Heavy drizzle', 61: 'Light rain', 63: 'Rain', 65: 'Heavy rain', 66: 'Freezing rain', 67: 'Heavy freezing rain', 71: 'Light snow', 73: 'Snow', 75: 'Heavy snow', 77: 'Snow grains', 80: 'Light showers', 81: 'Showers', 82: 'Heavy showers', 85: 'Light snow showers', 86: 'Heavy snow showers', 95: 'Thunderstorm', 96: 'Thunderstorm + hail', 99: 'Heavy thunderstorm + hail' };
+
+        function isWeatherQuery(q) {
+            return /\b(weather|temperature|forecast|rain|snow|wind|humid|storm|sunny|cloudy|cold|hot|warm|degrees|celsius|fahrenheit)\b/i.test(q);
+        }
+
+        async function getWeatherData(queryText) {
+            let lat, lon, locationName;
+
+            // Try to extract a named location from the query
+            if (queryText) {
+                const m = queryText.match(/(?:weather|forecast|temperature)\s+(?:in|for|at|near)\s+([\w\s,]+)/i);
+                if (m) {
+                    const candidate = m[1].trim().toLowerCase();
+                    const vague = ['my location', 'my area', 'my city', 'my town', 'my place', 'here', 'me', 'this area', 'this city', 'my region'];
+                    if (!vague.includes(candidate) && !/^(my |the |this )/.test(candidate)) {
+                        // Geocode the city name via Open-Meteo's geocoding API (CORS-enabled)
+                        try {
+                            const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(m[1].trim())}&count=1&language=en&format=json`);
+                            if (geoRes.ok) {
+                                const geoData = await geoRes.json();
+                                if (geoData.results?.length) {
+                                    lat = geoData.results[0].latitude;
+                                    lon = geoData.results[0].longitude;
+                                    locationName = [geoData.results[0].name, geoData.results[0].admin1, geoData.results[0].country].filter(Boolean).join(', ');
+                                }
+                            }
+                        } catch { /* geocoding failed */ }
+                    }
+                }
+            }
+
+            // Fall back to browser geolocation
+            if (!lat && userLocation) {
+                lat = userLocation.lat;
+                lon = userLocation.lon;
+                locationName = [userLocation.city, userLocation.state, userLocation.country].filter(Boolean).join(', ');
+            }
+            if (!lat) return null;
+
+            try {
+                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,uv_index&temperature_unit=fahrenheit&wind_speed_unit=mph`);
+                if (!res.ok) return null;
+                const data = await res.json();
+                const c = data.current;
+                if (!c) return null;
+                const desc = WEATHER_CODES[c.weather_code] || 'Unknown';
+                const tempC = ((c.temperature_2m - 32) * 5 / 9).toFixed(1);
+                const feelsC = ((c.apparent_temperature - 32) * 5 / 9).toFixed(1);
+                return {
+                    title: `Current Weather in ${locationName || 'your area'}`,
+                    url: `https://open-meteo.com`,
+                    snippet: `${c.temperature_2m}°F (${tempC}°C), feels like ${c.apparent_temperature}°F (${feelsC}°C). ${desc}. Humidity: ${c.relative_humidity_2m}%, Wind: ${c.wind_speed_10m} mph, UV Index: ${c.uv_index}`
+                };
+            } catch { return null; }
+        }
+
+        // ── Stock / Financial data detection ─────────────────────────────
+        const STOCK_SYMBOLS = /\b([A-Z]{1,5})\b/g;
+        function isStockQuery(q) {
+            return /\b(stock|stocks|share|shares|ticker|market|nasdaq|nyse|s&p|dow|price of|trading|invest|portfolio|dividend|earnings|ipo)\b/i.test(q);
+        }
+        function isCryptoQuery(q) {
+            return /\b(crypto|bitcoin|btc|ethereum|eth|solana|sol|dogecoin|doge|litecoin|ltc|ripple|xrp|cardano|ada|polkadot|dot|avalanche|avax|chainlink|link|polygon|matic|shiba|shib|cryptocurrency|coin price|token)\b/i.test(q);
+        }
+        function isCurrencyQuery(q) {
+            return /\b(exchange rate|convert|currency|usd|eur|gbp|jpy|cad|aud|chf|cny|inr|krw|mxn|brl|forex|foreign exchange)\b/i.test(q);
+        }
+        function isDateTimeQuery(q) {
+            return /\b(what time|current time|what date|today'?s? date|what day|current date|time zone|day of the week|what year)\b/i.test(q);
+        }
+        function isNewsQuery(q) {
+            return /\b(news|current events|latest|headlines|breaking|happening|today|recent events|trending)\b/i.test(q);
+        }
+        function isProgrammingQuery(q) {
+            return /\b(code|coding|programming|javascript|python|java|typescript|react|angular|vue|node|npm|css|html|api|debug|error|exception|stack ?overflow|stackoverflow|function|variable|class|object|array|algorithm|regex|sql|database|git|docker|kubernetes|linux|bash|terminal|command ?line|compiler|runtime|framework|library|package|module|syntax|loop|recursion|bug|deploy|server|backend|frontend|fullstack|rust|golang|swift|kotlin|ruby|php|c\+\+|csharp|c#|\.net)\b/i.test(q);
+        }
+        function isBookQuery(q) {
+            return /\b(book|books|novel|novels|author|read|reading|literature|fiction|non-?fiction|bestseller|publication|isbn|library|publisher|paperback|hardcover|ebook|audiobook|biography|autobiography|memoir)\b/i.test(q);
+        }
+        function isMusicMovieQuery(q) {
+            return /\b(song|songs|music|album|albums|artist|band|singer|musician|track|playlist|spotify|itunes|movie|movies|film|films|director|actor|actress|cinema|tv show|television|series|netflix|streaming|soundtrack|genre|concert|tour|release date|box office|oscar|grammy|emmy|podcast|podcasts|episode)\b/i.test(q);
+        }
+        function isGitHubQuery(q) {
+            return /\b(github|repository|repo|open source|open-source|git repo|source code|project|library|framework|npm package|pip package|crate|gem)\b/i.test(q);
+        }
+        function isSportsQuery(q) {
+            return /\b(sports?|football|soccer|basketball|baseball|hockey|tennis|golf|nfl|nba|mlb|nhl|fifa|premier league|champions league|world cup|score|standings|match|game result|player stats|team|playoffs|championship|olympics|medal|athletic)\b/i.test(q);
+        }
+
+        // ── Yahoo Finance v8 chart API (CORS-enabled) ────────────────────
+        async function getStockData(queryText) {
+            const results = [];
+            // Extract potential ticker symbols or company names
+            const tickerMatch = queryText.match(/\b([A-Z]{1,5})\b/g);
+            // Also try to extract from queries like "price of Apple" or "Tesla stock"
+            const companyMap = {
+                'apple': 'AAPL', 'microsoft': 'MSFT', 'google': 'GOOGL', 'alphabet': 'GOOGL',
+                'amazon': 'AMZN', 'tesla': 'TSLA', 'nvidia': 'NVDA', 'meta': 'META',
+                'facebook': 'META', 'netflix': 'NFLX', 'amd': 'AMD', 'intel': 'INTC',
+                'disney': 'DIS', 'walmart': 'WMT', 'coca cola': 'KO', 'pepsi': 'PEP',
+                'boeing': 'BA', 'nike': 'NKE', 'visa': 'V', 'mastercard': 'MA',
+                'paypal': 'PYPL', 'uber': 'UBER', 'airbnb': 'ABNB', 'spotify': 'SPOT',
+                'snapchat': 'SNAP', 'snap': 'SNAP', 'twitter': 'X', 'palantir': 'PLTR',
+                'coinbase': 'COIN', 'robinhood': 'HOOD', 'gamestop': 'GME', 'roblox': 'RBLX',
+                'ford': 'F', 'gm': 'GM', 'general motors': 'GM', 'jpmorgan': 'JPM',
+                'goldman sachs': 'GS', 'bank of america': 'BAC', 'wells fargo': 'WFC',
+                'berkshire': 'BRK-B', 'johnson': 'JNJ', 'pfizer': 'PFE', 'moderna': 'MRNA',
+                'costco': 'COST', 'target': 'TGT', 'starbucks': 'SBUX', 'mcdonald': 'MCD'
+            };
+
+            const symbols = new Set();
+            // Check company names
+            const lowerQuery = queryText.toLowerCase();
+            for (const [name, sym] of Object.entries(companyMap)) {
+                if (lowerQuery.includes(name)) symbols.add(sym);
+            }
+            // Check direct ticker mentions (only if they look like real tickers - 1-5 uppercase letters)
+            if (tickerMatch) {
+                const commonWords = new Set(['THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR', 'OUT', 'HAS', 'HIS', 'HOW', 'ITS', 'LET', 'MAY', 'NEW', 'NOW', 'OLD', 'SEE', 'WAY', 'WHO', 'BOY', 'DID', 'GET', 'HIM', 'SAY', 'SHE', 'TOO', 'USE', 'DAY', 'HAD', 'HOT', 'OIL', 'SIT', 'TOP', 'RED', 'IS', 'IN', 'IT', 'OF', 'ON', 'IF', 'AT', 'OR', 'AN', 'AS', 'SO', 'UP', 'MY', 'BY', 'NO', 'DO', 'GO', 'TO', 'WE', 'HE', 'ME', 'AM', 'US', 'BE', 'WHAT', 'STOCK', 'PRICE']);
+                for (const t of tickerMatch) {
+                    if (!commonWords.has(t) && t.length >= 2) symbols.add(t);
+                }
+            }
+
+            // Fetch data for each symbol (limit to 3)
+            const symbolArr = [...symbols].slice(0, 3);
+            const fetches = symbolArr.map(async (symbol) => {
+                try {
+                    const controller = new AbortController();
+                    setTimeout(() => controller.abort(), 5000);
+                    const res = await fetch(
+                        `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`,
+                        { signal: controller.signal, headers: { 'Accept': 'application/json' } }
+                    );
+                    if (!res.ok) return null;
+                    const data = await res.json();
+                    const meta = data?.chart?.result?.[0]?.meta;
+                    if (!meta) return null;
+                    const price = meta.regularMarketPrice;
+                    const prevClose = meta.chartPreviousClose || meta.previousClose;
+                    const change = prevClose ? (price - prevClose) : 0;
+                    const changePct = prevClose ? ((change / prevClose) * 100) : 0;
+                    const arrow = change >= 0 ? '📈' : '📉';
+                    const sign = change >= 0 ? '+' : '';
+                    return {
+                        title: `${arrow} ${meta.shortName || meta.symbol} (${meta.symbol}) — $${price.toFixed(2)}`,
+                        url: `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}`,
+                        snippet: `Price: $${price.toFixed(2)} | Change: ${sign}${change.toFixed(2)} (${sign}${changePct.toFixed(2)}%) | Currency: ${meta.currency || 'USD'} | Exchange: ${meta.exchangeName || 'N/A'} | Market time: ${new Date((meta.regularMarketTime || 0) * 1000).toLocaleString()}`
+                    };
+                } catch { return null; }
+            });
+            const stockResults = await Promise.all(fetches);
+            stockResults.forEach(r => { if (r) results.push(r); });
+
+            // If asking about general market / indices and no specific stock found
+            if (results.length === 0 && /\b(market|dow|s&p|nasdaq|index|indices)\b/i.test(queryText)) {
+                const indices = ['^GSPC', '^DJI', '^IXIC'];
+                const indexNames = { '^GSPC': 'S&P 500', '^DJI': 'Dow Jones', '^IXIC': 'NASDAQ' };
+                const indexFetches = indices.map(async (sym) => {
+                    try {
+                        const controller = new AbortController();
+                        setTimeout(() => controller.abort(), 5000);
+                        const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d`, { signal: controller.signal });
+                        if (!res.ok) return null;
+                        const data = await res.json();
+                        const meta = data?.chart?.result?.[0]?.meta;
+                        if (!meta) return null;
+                        const price = meta.regularMarketPrice;
+                        const prevClose = meta.chartPreviousClose || meta.previousClose;
+                        const change = prevClose ? (price - prevClose) : 0;
+                        const changePct = prevClose ? ((change / prevClose) * 100) : 0;
+                        const sign = change >= 0 ? '+' : '';
+                        return {
+                            title: `${indexNames[sym] || sym}: ${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                            url: `https://finance.yahoo.com/quote/${encodeURIComponent(sym)}`,
+                            snippet: `${sign}${change.toFixed(2)} (${sign}${changePct.toFixed(2)}%)`
+                        };
+                    } catch { return null; }
+                });
+                const indexResults = await Promise.all(indexFetches);
+                indexResults.forEach(r => { if (r) results.push(r); });
+            }
+            return results;
+        }
+
+        // ── Cryptocurrency via CoinGecko public API ──────────────────────
+        async function getCryptoData(queryText) {
+            const results = [];
+            const cryptoMap = {
+                'bitcoin': 'bitcoin', 'btc': 'bitcoin', 'ethereum': 'ethereum', 'eth': 'ethereum',
+                'solana': 'solana', 'sol': 'solana', 'dogecoin': 'dogecoin', 'doge': 'dogecoin',
+                'litecoin': 'litecoin', 'ltc': 'litecoin', 'ripple': 'ripple', 'xrp': 'ripple',
+                'cardano': 'cardano', 'ada': 'cardano', 'polkadot': 'polkadot', 'dot': 'polkadot',
+                'avalanche': 'avalanche-2', 'avax': 'avalanche-2', 'chainlink': 'chainlink',
+                'link': 'chainlink', 'polygon': 'matic-network', 'matic': 'matic-network',
+                'shiba': 'shiba-inu', 'shib': 'shiba-inu', 'tether': 'tether', 'usdt': 'tether',
+                'bnb': 'binancecoin', 'binance': 'binancecoin', 'tron': 'tron', 'trx': 'tron',
+                'stellar': 'stellar', 'xlm': 'stellar', 'cosmos': 'cosmos', 'atom': 'cosmos'
+            };
+
+            const ids = new Set();
+            const lowerQuery = queryText.toLowerCase();
+            for (const [keyword, id] of Object.entries(cryptoMap)) {
+                if (lowerQuery.includes(keyword)) ids.add(id);
+            }
+            // Default to top cryptos if generic crypto query
+            if (ids.size === 0) {
+                ids.add('bitcoin');
+                ids.add('ethereum');
+                ids.add('solana');
+            }
+
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 5000);
+                const idStr = [...ids].slice(0, 5).join(',');
+                const res = await fetch(
+                    `https://api.coingecko.com/api/v3/simple/price?ids=${idStr}&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_market_cap=true`,
+                    { signal: controller.signal, headers: { 'Accept': 'application/json' } }
+                );
+                if (res.ok) {
+                    const data = await res.json();
+                    for (const [id, info] of Object.entries(data)) {
+                        const name = id.charAt(0).toUpperCase() + id.slice(1).replace(/-/g, ' ');
+                        const price = info.usd;
+                        const change24h = info.usd_24h_change;
+                        const vol = info.usd_24h_vol;
+                        const mcap = info.usd_market_cap;
+                        const arrow = (change24h >= 0) ? '📈' : '📉';
+                        const sign = (change24h >= 0) ? '+' : '';
+                        const fmtPrice = price < 1 ? `$${price.toFixed(6)}` : `$${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                        results.push({
+                            title: `${arrow} ${name} — ${fmtPrice}`,
+                            url: `https://www.coingecko.com/en/coins/${id}`,
+                            snippet: `Price: ${fmtPrice} | 24h Change: ${sign}${change24h?.toFixed(2) || '?'}% | Volume (24h): $${vol ? (vol / 1e6).toFixed(1) + 'M' : '?'} | Market Cap: $${mcap ? (mcap / 1e9).toFixed(2) + 'B' : '?'}`
+                        });
+                    }
+                }
+            } catch { /* CoinGecko failed */ }
+
+            return results;
+        }
+
+        // ── Currency exchange rates via Frankfurter API ──────────────────
+        async function getCurrencyData(queryText) {
+            const results = [];
+            const currencyNames = {
+                'usd': 'USD', 'dollar': 'USD', 'dollars': 'USD', 'eur': 'EUR', 'euro': 'EUR', 'euros': 'EUR',
+                'gbp': 'GBP', 'pound': 'GBP', 'pounds': 'GBP', 'sterling': 'GBP',
+                'jpy': 'JPY', 'yen': 'JPY', 'cad': 'CAD', 'canadian': 'CAD',
+                'aud': 'AUD', 'australian': 'AUD', 'chf': 'CHF', 'swiss': 'CHF', 'franc': 'CHF',
+                'cny': 'CNY', 'yuan': 'CNY', 'rmb': 'CNY', 'inr': 'INR', 'rupee': 'INR', 'rupees': 'INR',
+                'krw': 'KRW', 'won': 'KRW', 'mxn': 'MXN', 'peso': 'MXN', 'pesos': 'MXN',
+                'brl': 'BRL', 'real': 'BRL', 'sek': 'SEK', 'krona': 'SEK', 'nok': 'NOK',
+                'dkk': 'DKK', 'pln': 'PLN', 'zloty': 'PLN', 'czk': 'CZK', 'huf': 'HUF',
+                'sgd': 'SGD', 'hkd': 'HKD', 'nzd': 'NZD', 'try': 'TRY', 'lira': 'TRY',
+                'zar': 'ZAR', 'rand': 'ZAR', 'thb': 'THB', 'baht': 'THB', 'php': 'PHP',
+                'idr': 'IDR', 'myr': 'MYR', 'bgn': 'BGN', 'ron': 'RON', 'isk': 'ISK'
+            };
+
+            const lowerQuery = queryText.toLowerCase();
+            const detectedCurrencies = new Set();
+            for (const [word, code] of Object.entries(currencyNames)) {
+                if (lowerQuery.includes(word)) detectedCurrencies.add(code);
+            }
+
+            const base = [...detectedCurrencies][0] || 'USD';
+            const targets = [...detectedCurrencies].filter(c => c !== base);
+
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 5000);
+                const targetStr = targets.length > 0 ? targets.join(',') : 'EUR,GBP,JPY,CAD,AUD,CHF,CNY';
+                const res = await fetch(`https://api.frankfurter.app/latest?from=${base}&to=${targetStr}`, { signal: controller.signal });
+                if (res.ok) {
+                    const data = await res.json();
+                    const rateLines = Object.entries(data.rates || {}).map(([cur, rate]) => `1 ${base} = ${rate} ${cur}`).join(' | ');
+                    results.push({
+                        title: `💱 Exchange Rates — ${base} (as of ${data.date || 'today'})`,
+                        url: 'https://www.frankfurter.app',
+                        snippet: rateLines
+                    });
+                }
+            } catch { /* currency API failed */ }
+
+            return results;
+        }
+
+        // ── Date/Time info (built-in, no API) ────────────────────────────
+        function getDateTimeInfo(queryText) {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' };
+            return {
+                title: `🕐 Current Date & Time`,
+                url: '',
+                snippet: `${now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} | ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' })} | Unix: ${Math.floor(now.getTime() / 1000)}`
+            };
+        }
+
+        // ── DuckDuckGo Instant Answer API ────────────────────────────────
+        async function getDuckDuckGoAnswer(query) {
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 5000);
+                const res = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`, { signal: controller.signal });
+                if (res.ok) {
+                    const data = await res.json();
+                    const results = [];
+                    // Abstract (main answer)
+                    if (data.AbstractText) {
+                        results.push({
+                            title: data.Heading || query,
+                            url: data.AbstractURL || `https://duckduckgo.com/?q=${encodeURIComponent(query)}`,
+                            snippet: data.AbstractText.slice(0, 400)
+                        });
+                    }
+                    // Answer (direct factual answers like math, conversions)
+                    if (data.Answer) {
+                        results.push({
+                            title: `Answer: ${query}`,
+                            url: `https://duckduckgo.com/?q=${encodeURIComponent(query)}`,
+                            snippet: typeof data.Answer === 'string' ? data.Answer : JSON.stringify(data.Answer)
+                        });
+                    }
+                    // Related topics
+                    if (data.RelatedTopics?.length) {
+                        data.RelatedTopics.slice(0, 2).forEach(t => {
+                            if (t.Text && t.FirstURL) {
+                                results.push({ title: t.Text.slice(0, 80), url: t.FirstURL, snippet: t.Text });
+                            }
+                        });
+                    }
+                    return results;
+                }
+            } catch { /* DDG failed */ }
+            return [];
+        }
+
+        // ── Wikipedia Article Excerpts (limited to 2 to encourage source diversity) ─
+        async function getWikipediaExcerpts(query) {
+            const results = [];
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 5000);
+                const searchRes = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&srlimit=2&format=json&origin=*`, { signal: controller.signal });
+                if (searchRes.ok) {
+                    const searchData = await searchRes.json();
+                    const titles = (searchData.query?.search || []).map(r => r.title);
+                    if (titles.length > 0) {
+                        const extractRes = await fetch(`https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(titles.join('|'))}&prop=extracts&exintro=1&explaintext=1&exlimit=${titles.length}&format=json&origin=*`, { signal: controller.signal });
+                        if (extractRes.ok) {
+                            const extractData = await extractRes.json();
+                            const pages = extractData.query?.pages || {};
+                            for (const page of Object.values(pages)) {
+                                if (page.extract && page.title) {
+                                    results.push({
+                                        title: page.title,
+                                        url: `https://en.wikipedia.org/wiki/${encodeURIComponent(page.title.replace(/ /g, '_'))}`,
+                                        snippet: page.extract.slice(0, 300) + (page.extract.length > 300 ? '...' : '')
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch { /* wiki failed */ }
+            return results;
+        }
+
+        // ── StackExchange API (programming Q&A) ─────────────────────────
+        async function getStackExchangeResults(query) {
+            const results = [];
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 5000);
+                const res = await fetch(`https://api.stackexchange.com/2.3/search/excerpts?order=desc&sort=relevance&q=${encodeURIComponent(query)}&site=stackoverflow&pagesize=3&filter=default`, { signal: controller.signal });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.items?.length) {
+                        data.items.forEach(item => {
+                            const title = (item.title || '').replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+                            const body = (item.excerpt || item.body || '').replace(/<[^>]*>/g, '').slice(0, 300);
+                            if (title && body) {
+                                results.push({
+                                    title: `💻 ${title}`,
+                                    url: `https://stackoverflow.com/questions/${item.question_id}`,
+                                    snippet: `${body}${body.length >= 300 ? '...' : ''} | Score: ${item.score || 0} | Answers: ${item.answer_count || '?'}`
+                                });
+                            }
+                        });
+                    }
+                }
+            } catch { /* StackExchange failed */ }
+            return results;
+        }
+
+        // ── Hacker News Search (Algolia API — tech news) ────────────────
+        async function getHackerNewsResults(query) {
+            const results = [];
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 5000);
+                const res = await fetch(`https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(query)}&tags=story&hitsPerPage=4`, { signal: controller.signal });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.hits?.length) {
+                        data.hits.forEach(hit => {
+                            const title = hit.title || '';
+                            const url = hit.url || `https://news.ycombinator.com/item?id=${hit.objectID}`;
+                            const points = hit.points || 0;
+                            const comments = hit.num_comments || 0;
+                            const date = hit.created_at ? new Date(hit.created_at).toLocaleDateString() : '';
+                            if (title) {
+                                results.push({
+                                    title: `📰 ${title}`,
+                                    url: url,
+                                    snippet: `Points: ${points} | Comments: ${comments}${date ? ' | Date: ' + date : ''} | HN Discussion: https://news.ycombinator.com/item?id=${hit.objectID}`
+                                });
+                            }
+                        });
+                    }
+                }
+            } catch { /* HN failed */ }
+            return results;
+        }
+
+        // ── Open Library Search (books) ──────────────────────────────────
+        async function getOpenLibraryResults(query) {
+            const results = [];
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 5000);
+                const res = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=3&fields=title,author_name,first_publish_year,subject,isbn,key,edition_count,language`, { signal: controller.signal });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.docs?.length) {
+                        data.docs.forEach(doc => {
+                            const title = doc.title || '';
+                            const authors = (doc.author_name || []).slice(0, 2).join(', ') || 'Unknown author';
+                            const year = doc.first_publish_year || 'Unknown year';
+                            const subjects = (doc.subject || []).slice(0, 3).join(', ');
+                            const editions = doc.edition_count || '?';
+                            if (title) {
+                                results.push({
+                                    title: `📚 ${title} — ${authors}`,
+                                    url: `https://openlibrary.org${doc.key}`,
+                                    snippet: `Author: ${authors} | First published: ${year} | Editions: ${editions}${subjects ? ' | Subjects: ' + subjects : ''}`
+                                });
+                            }
+                        });
+                    }
+                }
+            } catch { /* Open Library failed */ }
+            return results;
+        }
+
+        // ── iTunes Search API (music, movies, podcasts) ─────────────────
+        async function getITunesResults(query) {
+            const results = [];
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 5000);
+                // Determine media type from query
+                let media = 'all';
+                const lq = query.toLowerCase();
+                if (/\b(song|album|music|artist|band|singer|track)\b/.test(lq)) media = 'music';
+                else if (/\b(movie|film|cinema)\b/.test(lq)) media = 'movie';
+                else if (/\b(podcast|episode)\b/.test(lq)) media = 'podcast';
+                else if (/\b(tv show|television|series)\b/.test(lq)) media = 'tvShow';
+                const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=${media}&limit=3`, { signal: controller.signal });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.results?.length) {
+                        data.results.forEach(item => {
+                            const kind = item.kind || item.wrapperType || 'result';
+                            const name = item.trackName || item.collectionName || item.artistName || '';
+                            const artist = item.artistName || '';
+                            const url = item.trackViewUrl || item.collectionViewUrl || item.artistViewUrl || '';
+                            const price = item.trackPrice != null ? `$${item.trackPrice}` : (item.collectionPrice != null ? `$${item.collectionPrice}` : '');
+                            const genre = item.primaryGenreName || '';
+                            const releaseDate = item.releaseDate ? new Date(item.releaseDate).toLocaleDateString() : '';
+                            const icon = kind.includes('song') || kind.includes('music') ? '🎵' : kind.includes('movie') || kind.includes('film') ? '🎬' : kind === 'podcast' ? '🎙️' : '🎬';
+                            if (name) {
+                                results.push({
+                                    title: `${icon} ${name}${artist && artist !== name ? ' — ' + artist : ''}`,
+                                    url: url,
+                                    snippet: `Type: ${kind} | ${artist ? 'Artist: ' + artist + ' | ' : ''}${genre ? 'Genre: ' + genre + ' | ' : ''}${releaseDate ? 'Released: ' + releaseDate + ' | ' : ''}${price ? 'Price: ' + price : ''}`
+                                });
+                            }
+                        });
+                    }
+                }
+            } catch { /* iTunes failed */ }
+            return results;
+        }
+
+        // ── GitHub Search API (repositories) ────────────────────────────
+        async function getGitHubResults(query) {
+            const results = [];
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 5000);
+                const res = await fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&sort=stars&order=desc&per_page=3`, {
+                    signal: controller.signal,
+                    headers: { 'Accept': 'application/vnd.github.v3+json' }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.items?.length) {
+                        data.items.forEach(repo => {
+                            const name = repo.full_name || '';
+                            const desc = (repo.description || '').slice(0, 200);
+                            const stars = repo.stargazers_count || 0;
+                            const forks = repo.forks_count || 0;
+                            const lang = repo.language || '';
+                            const updated = repo.updated_at ? new Date(repo.updated_at).toLocaleDateString() : '';
+                            if (name) {
+                                results.push({
+                                    title: `⭐ ${name} (${stars.toLocaleString()} stars)`,
+                                    url: repo.html_url,
+                                    snippet: `${desc}${desc ? ' | ' : ''}${lang ? 'Language: ' + lang + ' | ' : ''}Stars: ${stars.toLocaleString()} | Forks: ${forks.toLocaleString()}${updated ? ' | Updated: ' + updated : ''}`
+                                });
+                            }
+                        });
+                    }
+                }
+            } catch { /* GitHub failed */ }
+            return results;
+        }
+
+        // ── Wikidata Entity Search (factual lookups) ────────────────────
+        async function getWikidataResults(query) {
+            const results = [];
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 5000);
+                const res = await fetch(`https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(query)}&language=en&limit=2&format=json&origin=*`, { signal: controller.signal });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.search?.length) {
+                        data.search.forEach(entity => {
+                            if (entity.description) {
+                                results.push({
+                                    title: entity.label || query,
+                                    url: entity.concepturi || `https://www.wikidata.org/wiki/${entity.id}`,
+                                    snippet: entity.description
+                                });
+                            }
+                        });
+                    }
+                }
+            } catch { /* Wikidata failed */ }
+            return results;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // ═══ ADDITIONAL BROAD SEARCH SOURCES ═════════════════════════════
+        // ══════════════════════════════════════════════════════════════════
+
+        // ── SearXNG Metasearch (aggregates Google, Bing, Yahoo, DuckDuckGo,
+        //    Brave, Mojeek, Startpage, Qwant, and 60+ more search engines).
+        //    Each result URL points to the ACTUAL source website (CNN, BBC,
+        //    Reddit, Stack Overflow, MDN, etc.). Tries multiple public instances.
+        async function getSearXNGResults(query) {
+            const instances = [
+                'https://search.sapti.me',
+                'https://searx.be',
+                'https://search.bus-hit.me',
+                'https://searx.tiekoetter.com',
+                'https://priv.au',
+                'https://searx.work',
+                'https://search.inetol.net',
+                'https://search.ononoki.org',
+                'https://paulgo.io',
+                'https://s.trung.fun',
+                'https://searx.fmac.xyz',
+                'https://searx.colbster937.dev'
+            ];
+            // Shuffle instances to distribute load
+            for (let i = instances.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [instances[i], instances[j]] = [instances[j], instances[i]];
+            }
+            // Try up to 4 instances in parallel for speed
+            const tryBatch = async (batch) => {
+                const attempts = batch.map(async (instance) => {
+                    try {
+                        const controller = new AbortController();
+                        setTimeout(() => controller.abort(), 6000);
+                        const res = await fetch(
+                            `${instance}/search?q=${encodeURIComponent(query)}&format=json&categories=general&pageno=1&language=en`,
+                            { signal: controller.signal }
+                        );
+                        if (!res.ok) return null;
+                        const data = await res.json();
+                        if (!data.results?.length) return null;
+                        return data.results.slice(0, 15).map(r => {
+                            let domain = '';
+                            try { domain = new URL(r.url).hostname.replace('www.', ''); } catch { domain = ''; }
+                            return {
+                                title: r.title || '',
+                                url: r.url || '',
+                                snippet: (r.content || '').replace(/<[^>]*>/g, '').slice(0, 300),
+                                _source: 'SearXNG',
+                                _domain: domain
+                            };
+                        }).filter(r => r.title && r.snippet);
+                    } catch { return null; }
+                });
+                const results = await Promise.all(attempts);
+                return results.find(r => r !== null && r.length > 0) || null;
+            };
+            // Try first batch of 4
+            let results = await tryBatch(instances.slice(0, 4));
+            if (!results && instances.length > 4) {
+                results = await tryBatch(instances.slice(4, 8));
+            }
+            return results || [];
+        }
+
+        // ── Reddit Search (covers every topic — millions of communities) ─
+        async function getRedditResults(query) {
+            const results = [];
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 5000);
+                const res = await fetch(
+                    `https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&sort=relevance&limit=6&type=link`,
+                    { signal: controller.signal, headers: { 'Accept': 'application/json' } }
+                );
+                if (res.ok) {
+                    const data = await res.json();
+                    const posts = data?.data?.children || [];
+                    posts.forEach(p => {
+                        const d = p.data;
+                        if (!d || !d.title) return;
+                        const score = d.score || 0;
+                        const comments = d.num_comments || 0;
+                        const sub = d.subreddit_name_prefixed || '';
+                        const selftext = (d.selftext || '').slice(0, 200);
+                        const date = d.created_utc ? new Date(d.created_utc * 1000).toLocaleDateString() : '';
+                        results.push({
+                            title: d.title,
+                            url: d.url?.startsWith('/') ? `https://www.reddit.com${d.url}` : (d.url || `https://www.reddit.com${d.permalink}`),
+                            snippet: `${sub} | ⬆ ${score} points | 💬 ${comments} comments${date ? ' | ' + date : ''}${selftext ? '\n' + selftext : ''}`,
+                            _source: 'Reddit',
+                            _domain: 'reddit.com'
+                        });
+                    });
+                }
+            } catch { /* Reddit failed */ }
+            return results;
+        }
+
+        // ── Wiktionary Definitions ────────────────────────────────────────
+        async function getWiktionaryDefinitions(query) {
+            const results = [];
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 4000);
+                // Use the free dictionary API which pulls from Wiktionary
+                const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(query.split(' ').slice(0, 2).join(' '))}`, { signal: controller.signal });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (Array.isArray(data) && data.length > 0) {
+                        const entry = data[0];
+                        const defs = [];
+                        (entry.meanings || []).slice(0, 3).forEach(m => {
+                            const partOfSpeech = m.partOfSpeech || '';
+                            (m.definitions || []).slice(0, 2).forEach(d => {
+                                defs.push(`(${partOfSpeech}) ${d.definition}`);
+                            });
+                        });
+                        if (defs.length) {
+                            const phonetic = entry.phonetic || (entry.phonetics || []).map(p => p.text).filter(Boolean)[0] || '';
+                            results.push({
+                                title: `📖 ${entry.word}${phonetic ? ' ' + phonetic : ''}`,
+                                url: `https://en.wiktionary.org/wiki/${encodeURIComponent(entry.word)}`,
+                                snippet: defs.join(' | '),
+                                _source: 'Wiktionary'
+                            });
+                        }
+                    }
+                }
+            } catch { /* Wiktionary failed */ }
+            return results;
+        }
+
+        // ── arXiv Scientific Papers ───────────────────────────────────────
+        async function getArxivResults(query) {
+            const results = [];
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 5000);
+                const res = await fetch(`https://export.arxiv.org/api/query?search_query=all:${encodeURIComponent(query)}&start=0&max_results=3&sortBy=relevance`, { signal: controller.signal });
+                if (res.ok) {
+                    const text = await res.text();
+                    // Parse the Atom XML response
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(text, 'text/xml');
+                    const entries = doc.querySelectorAll('entry');
+                    entries.forEach(entry => {
+                        const title = entry.querySelector('title')?.textContent?.trim().replace(/\s+/g, ' ') || '';
+                        const summary = entry.querySelector('summary')?.textContent?.trim().replace(/\s+/g, ' ').slice(0, 250) || '';
+                        const id = entry.querySelector('id')?.textContent?.trim() || '';
+                        const authors = Array.from(entry.querySelectorAll('author name')).slice(0, 3).map(a => a.textContent).join(', ');
+                        const published = entry.querySelector('published')?.textContent?.slice(0, 10) || '';
+                        if (title && summary) {
+                            results.push({
+                                title: `🔬 ${title}`,
+                                url: id,
+                                snippet: `Authors: ${authors || 'Unknown'} | Published: ${published}\n${summary}...`,
+                                _source: 'arXiv'
+                            });
+                        }
+                    });
+                }
+            } catch { /* arXiv failed */ }
+            return results;
+        }
+
+        // ── CrossRef Academic Papers ──────────────────────────────────────
+        async function getCrossRefResults(query) {
+            const results = [];
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 5000);
+                const res = await fetch(`https://api.crossref.org/works?query=${encodeURIComponent(query)}&rows=3&select=title,author,DOI,published-print,container-title,abstract,URL`, {
+                    signal: controller.signal,
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    (data.message?.items || []).forEach(item => {
+                        const title = (item.title || [])[0] || '';
+                        const authors = (item.author || []).slice(0, 3).map(a => `${a.given || ''} ${a.family || ''}`).join(', ');
+                        const journal = (item['container-title'] || [])[0] || '';
+                        const year = item['published-print']?.['date-parts']?.[0]?.[0] || '';
+                        const doi = item.DOI || '';
+                        const abstract = (item.abstract || '').replace(/<[^>]*>/g, '').slice(0, 200);
+                        if (title) {
+                            results.push({
+                                title: `📄 ${title}`,
+                                url: item.URL || `https://doi.org/${doi}`,
+                                snippet: `${authors ? 'Authors: ' + authors + ' | ' : ''}${journal ? 'Journal: ' + journal + ' | ' : ''}${year ? 'Year: ' + year : ''}${abstract ? '\n' + abstract + '...' : ''}`,
+                                _source: 'CrossRef'
+                            });
+                        }
+                    });
+                }
+            } catch { /* CrossRef failed */ }
+            return results;
+        }
+
+        // ── Wikimedia REST API (structured summaries with images) ─────────
+        async function getWikimediaRestSummary(query) {
+            const results = [];
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 4000);
+                // Try to get a direct page summary (works best for named entities)
+                const title = query.replace(/ /g, '_');
+                const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`, {
+                    signal: controller.signal,
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.extract && data.type !== 'disambiguation') {
+                        results.push({
+                            title: `${data.titles?.normalized || data.title || query}`,
+                            url: data.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`,
+                            snippet: data.description ? `${data.description} — ${data.extract.slice(0, 250)}` : data.extract.slice(0, 300),
+                            _source: 'Wikimedia REST'
+                        });
+                    }
+                }
+            } catch { /* Wikimedia REST failed */ }
+            return results;
+        }
+
+        // ── Multi-site StackExchange (SuperUser, ServerFault, etc.) ───────
+        async function getStackExchangeMultiSite(query) {
+            const results = [];
+            // Query multiple StackExchange sites for broader coverage
+            const sites = [
+                { site: 'superuser', label: 'Super User' },
+                { site: 'serverfault', label: 'Server Fault' },
+                { site: 'askubuntu', label: 'Ask Ubuntu' },
+                { site: 'math.stackexchange', label: 'Math SE' },
+                { site: 'physics.stackexchange', label: 'Physics SE' },
+                { site: 'electronics.stackexchange', label: 'Electronics SE' },
+                { site: 'cooking.stackexchange', label: 'Cooking SE' },
+                { site: 'diy.stackexchange', label: 'DIY SE' },
+                { site: 'travel.stackexchange', label: 'Travel SE' },
+                { site: 'money.stackexchange', label: 'Personal Finance SE' }
+            ];
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 5000);
+                // Use the /search endpoint on multiple sites
+                const siteStr = sites.map(s => s.site).join(';');
+                const res = await fetch(`https://api.stackexchange.com/2.3/search?order=desc&sort=relevance&intitle=${encodeURIComponent(query)}&site=${sites[0].site}&pagesize=2&filter=default`, { signal: controller.signal });
+                if (res.ok) {
+                    const data = await res.json();
+                    (data.items || []).forEach(item => {
+                        const title = (item.title || '').replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+                        if (title) {
+                            results.push({
+                                title: title,
+                                url: item.link || `https://${sites[0].site}.com/questions/${item.question_id}`,
+                                snippet: `Score: ${item.score || 0} | Answers: ${item.answer_count || 0} | Views: ${item.view_count || 0} | Tags: ${(item.tags || []).join(', ')}`,
+                                _source: 'StackExchange'
+                            });
+                        }
+                    });
+                }
+            } catch { /* SE multi failed */ }
+            return results;
+        }
+
+        // ── Reddit News Aggregation (from news-focused subreddits) ────────
+        async function getRedditNews(query) {
+            const results = [];
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 5000);
+                const res = await fetch(
+                    `https://www.reddit.com/r/news+worldnews+science+technology+business/search.json?q=${encodeURIComponent(query)}&sort=relevance&limit=4&restrict_sr=on&type=link&t=month`,
+                    { signal: controller.signal, headers: { 'Accept': 'application/json' } }
+                );
+                if (res.ok) {
+                    const data = await res.json();
+                    (data?.data?.children || []).forEach(p => {
+                        const d = p.data;
+                        if (!d || !d.title) return;
+                        // The linked URL is often the actual news article (not Reddit)
+                        const isExternal = d.url && !d.url.includes('reddit.com');
+                        let domain = '';
+                        try { domain = new URL(d.url).hostname.replace('www.', ''); } catch { }
+                        results.push({
+                            title: `📰 ${d.title}`,
+                            url: isExternal ? d.url : `https://www.reddit.com${d.permalink}`,
+                            snippet: `${d.subreddit_name_prefixed || ''} | ⬆ ${d.score || 0} | 💬 ${d.num_comments || 0} comments${isExternal ? ' | Source: ' + domain : ''}`,
+                            _source: 'Reddit News',
+                            _domain: isExternal ? domain : 'reddit.com'
+                        });
+                    });
+                }
+            } catch { /* Reddit news failed */ }
+            return results;
+        }
+
+        // ── DuckDuckGo Lite HTML Search (broader web results) ────────────
+        // Note: This fetches from DDG's JSON API with different parameters
+        // to get more varied results than the Instant Answer API
+        async function getDuckDuckGoWebResults(query) {
+            const results = [];
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 5000);
+                // Use DDG's abstract + definition endpoints for more data
+                const res = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=0`, { signal: controller.signal });
+                if (res.ok) {
+                    const data = await res.json();
+                    // Definition
+                    if (data.Definition && data.DefinitionURL) {
+                        results.push({
+                            title: `Definition: ${data.Heading || query}`,
+                            url: data.DefinitionURL,
+                            snippet: data.Definition,
+                            _source: 'DDG Definition'
+                        });
+                    }
+                    // Infobox data
+                    if (data.Infobox?.content?.length) {
+                        const infoSnippet = data.Infobox.content.slice(0, 6).map(c => `${c.label}: ${c.value}`).join(' | ');
+                        if (infoSnippet) {
+                            results.push({
+                                title: `ℹ️ ${data.Heading || query} — Quick Facts`,
+                                url: data.AbstractURL || `https://duckduckgo.com/?q=${encodeURIComponent(query)}`,
+                                snippet: infoSnippet,
+                                _source: 'DDG Infobox'
+                            });
+                        }
+                    }
+                    // Related topics (more aggressive extraction)
+                    if (data.RelatedTopics?.length) {
+                        data.RelatedTopics.slice(0, 4).forEach(t => {
+                            if (t.Topics) {
+                                // Sub-topics group
+                                t.Topics.slice(0, 2).forEach(sub => {
+                                    if (sub.Text && sub.FirstURL) {
+                                        results.push({
+                                            title: sub.Text.slice(0, 80),
+                                            url: sub.FirstURL,
+                                            snippet: sub.Text,
+                                            _source: 'DDG Related'
+                                        });
+                                    }
+                                });
+                            } else if (t.Text && t.FirstURL) {
+                                results.push({
+                                    title: t.Text.slice(0, 80),
+                                    url: t.FirstURL,
+                                    snippet: t.Text,
+                                    _source: 'DDG Related'
+                                });
+                            }
+                        });
+                    }
+                }
+            } catch { /* DDG web failed */ }
+            return results;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // ═══ MASTER WEB SEARCH AGGREGATOR ════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════
+        // Queries ALL sources in parallel for every search. Specialized
+        // sources are added when query type matches. Results are
+        // deduplicated and interleaved for source diversity.
+        async function performWebSearch(query) {
+            const results = [];
+            const promises = [];
+            const sourceLog = {};
+
+            const track = (name, promise) => {
+                promises.push(
+                    promise
+                        .then(r => {
+                            const arr = Array.isArray(r) ? r : (r ? [r] : []);
+                            if (arr.length > 0) {
+                                sourceLog[name] = arr.length;
+                                // Tag each result with its source for diversity sorting
+                                arr.forEach(item => { if (!item._source) item._source = name; });
+                                results.push(...arr);
+                            }
+                            return arr;
+                        })
+                        .catch(err => {
+                            sourceLog[name] = `error: ${err?.message || 'unknown'}`;
+                            return [];
+                        })
+                );
+            };
+
+            // ─── Synchronous sources ──────────────────────────────────
+            if (isDateTimeQuery(query)) {
+                const dtInfo = getDateTimeInfo(query);
+                dtInfo._source = 'DateTime';
+                results.push(dtInfo);
+                sourceLog['DateTime'] = 1;
+            }
+
+            // ═════════════════════════════════════════════════════════
+            // ═══ TIER 1: BROAD WEB SEARCH (always queried) ══════════
+            // These search the ENTIRE web and return results from
+            // hundreds of different websites.
+            // ═════════════════════════════════════════════════════════
+
+            // SearXNG — THE KEY SOURCE. Metasearch engine that aggregates
+            // Google, Bing, Yahoo, DuckDuckGo, Brave, Mojeek, Startpage,
+            // Qwant, and 60+ other search engines. Returns results from
+            // ANY website on the internet.
+            track('SearXNG (70+ engines)', getSearXNGResults(query));
+
+            // Reddit — millions of communities discussing every topic
+            track('Reddit', getRedditResults(query));
+
+            // DuckDuckGo Instant Answers — definitions, calculations, facts
+            track('DuckDuckGo', getDuckDuckGoAnswer(query));
+
+            // DuckDuckGo Extended — definitions, infoboxes, related topics
+            track('DDG Extended', getDuckDuckGoWebResults(query));
+
+            // Wikipedia (limited to 2 results for diversity)
+            track('Wikipedia', getWikipediaExcerpts(query));
+
+            // Wikimedia REST — structured summaries
+            track('Wikimedia REST', getWikimediaRestSummary(query));
+
+            // Wikidata — entity data
+            track('Wikidata', getWikidataResults(query));
+
+            // Wiktionary — definitions
+            track('Wiktionary', getWiktionaryDefinitions(query));
+
+            // Hacker News — tech, science, business news & discussions
+            track('Hacker News', getHackerNewsResults(query));
+
+            // Reddit News — from r/news, r/worldnews, r/science, etc.
+            track('Reddit News', getRedditNews(query));
+
+            // StackExchange multi-site (SuperUser, ServerFault, etc.)
+            track('StackExchange Multi', getStackExchangeMultiSite(query));
+
+            // ═════════════════════════════════════════════════════════
+            // ═══ TIER 2: SPECIALIZED SOURCES (when topic matches) ═══
+            // ═════════════════════════════════════════════════════════
+
+            // Weather
+            if (isWeatherQuery(query) || /\b(in|near|at|around)\s+[A-Z][a-z]/i.test(query)) {
+                track('Weather (Open-Meteo)', getWeatherData(query).then(w => w ? [w] : []));
+            }
+
+            // Stocks
+            if (isStockQuery(query)) {
+                track('Stocks (Yahoo Finance)', getStockData(query));
+            }
+
+            // Crypto
+            if (isCryptoQuery(query)) {
+                track('Crypto (CoinGecko)', getCryptoData(query));
+            }
+
+            // Currency
+            if (isCurrencyQuery(query)) {
+                track('Currency (Frankfurter)', getCurrencyData(query));
+            }
+
+            // Programming Q&A
+            if (isProgrammingQuery(query)) {
+                track('StackOverflow', getStackExchangeResults(query));
+            }
+
+            // Books
+            if (isBookQuery(query)) {
+                track('Books (Open Library)', getOpenLibraryResults(query));
+            }
+
+            // Music, movies, podcasts
+            if (isMusicMovieQuery(query)) {
+                track('iTunes', getITunesResults(query));
+            }
+
+            // Code repositories
+            if (isGitHubQuery(query)) {
+                track('GitHub', getGitHubResults(query));
+            }
+
+            // ═════════════════════════════════════════════════════════
+            // ═══ TIER 3: ACADEMIC SOURCES (only for research topics) ═
+            // ═════════════════════════════════════════════════════════
+            const isAcademic = /\b(research|study|studies|paper|papers|journal|academic|scientific|science|theory|hypothesis|experiment|peer.?review|citation|thesis|dissertation|professor|university|analysis|methodology|findings|evidence|data|statistics|clinical|medical|biology|chemistry|physics|mathematics|engineering|psychology|sociology|economics|neuroscience|genomics|quantum|molecular|computational|algorithm)\b/i.test(query);
+
+            if (isAcademic || isProgrammingQuery(query)) {
+                // arXiv scientific papers
+                track('arXiv', getArxivResults(query));
+                // CrossRef academic papers
+                track('CrossRef', getCrossRefResults(query));
+            }
+
+            // ─── Wait for ALL sources (generous 12s timeout) ─────────
+            await Promise.race([
+                Promise.allSettled(promises),
+                new Promise(resolve => setTimeout(resolve, 12000))
+            ]);
+
+            // ─── Log results ─────────────────────────────────────────
+            const successCount = Object.values(sourceLog).filter(v => typeof v === 'number').length;
+            const totalSources = Object.keys(sourceLog).length;
+            console.log(`[Web Search] Query: "${query}"`);
+            console.log(`[Web Search] ${successCount}/${totalSources} sources returned data:`, JSON.stringify(sourceLog));
+            console.log(`[Web Search] Raw results: ${results.length}`);
+
+            // ═════════════════════════════════════════════════════════════
+            // ═══ SEARCH INTELLIGENCE PIPELINE ════════════════════════════
+            // ═════════════════════════════════════════════════════════════
+
+            // ─── 1. TOKENIZATION & QUERY EXPANSION ───────────────────
+            const STOP_WORDS = new Set(['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'shall', 'can', 'need', 'dare', 'ought', 'used', 'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by', 'from', 'as', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'between', 'out', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 'just', 'about', 'also', 'and', 'but', 'or', 'if', 'that', 'this', 'it', 'its', 'what', 'which', 'who', 'whom', 'these', 'those', 'i', 'me', 'my', 'we', 'our', 'you', 'your', 'he', 'him', 'his', 'she', 'her', 'they', 'them', 'their']);
+
+            function tokenize(text) {
+                return (text || '').toLowerCase()
+                    .replace(/[^a-z0-9\s'-]/g, ' ')
+                    .split(/\s+/)
+                    .filter(w => w.length > 1 && !STOP_WORDS.has(w));
+            }
+
+            // Expand query with related terms for better recall
+            function expandQuery(q) {
+                const tokens = tokenize(q);
+                const expansions = new Set(tokens);
+                const synonymMap = {
+                    'weather': ['temperature', 'forecast', 'climate', 'rain', 'sunny', 'cloudy', 'humidity', 'wind'],
+                    'stock': ['shares', 'equity', 'market', 'nasdaq', 'nyse', 'dow', 'trading', 'price'],
+                    'crypto': ['cryptocurrency', 'bitcoin', 'ethereum', 'blockchain', 'token', 'coin', 'defi'],
+                    'news': ['latest', 'breaking', 'update', 'report', 'headline', 'today', 'current'],
+                    'conflict': ['war', 'battle', 'attack', 'military', 'operation', 'strike', 'combat', 'invasion'],
+                    'president': ['presidential', 'administration', 'white house', 'leader', 'executive'],
+                    'politics': ['political', 'election', 'vote', 'poll', 'campaign', 'democrat', 'republican', 'congress', 'senate'],
+                    'economy': ['economic', 'gdp', 'inflation', 'recession', 'growth', 'unemployment', 'trade'],
+                    'health': ['medical', 'disease', 'treatment', 'hospital', 'doctor', 'clinical', 'vaccine'],
+                    'technology': ['tech', 'software', 'hardware', 'digital', 'innovation', 'ai', 'computer'],
+                    'science': ['scientific', 'research', 'study', 'experiment', 'discovery', 'theory'],
+                    'sports': ['game', 'match', 'tournament', 'championship', 'league', 'score', 'team', 'player'],
+                    'movie': ['film', 'cinema', 'actor', 'director', 'review', 'box office', 'streaming'],
+                    'music': ['song', 'album', 'artist', 'band', 'concert', 'track', 'genre'],
+                    'price': ['cost', 'value', 'worth', 'rate', 'fee', 'charge'],
+                    'death': ['died', 'killed', 'deceased', 'fatal', 'obituary', 'passed away'],
+                    'trump': ['donald trump', 'president trump', 'maga', 'republican'],
+                    'biden': ['joe biden', 'president biden', 'democrat'],
+                    'iran': ['iranian', 'tehran', 'persian', 'middle east'],
+                    'ukraine': ['ukrainian', 'kyiv', 'zelensky'],
+                    'russia': ['russian', 'moscow', 'putin', 'kremlin'],
+                    'china': ['chinese', 'beijing', 'xi jinping'],
+                    'climate': ['global warming', 'carbon', 'emissions', 'environment', 'sustainability'],
+                };
+                tokens.forEach(t => {
+                    if (synonymMap[t]) synonymMap[t].forEach(s => expansions.add(s));
+                });
+                return { original: tokens, expanded: [...expansions] };
+            }
+
+            // ─── 2. TF-IDF RELEVANCE SCORING ────────────────────────
+            function computeRelevance(queryTokens, result) {
+                const titleTokens = tokenize(result.title || '');
+                const snippetTokens = tokenize(result.snippet || '');
+                const allDocTokens = [...titleTokens, ...snippetTokens];
+
+                if (allDocTokens.length === 0) return 0;
+
+                // Term frequency in document
+                const docFreq = {};
+                allDocTokens.forEach(t => { docFreq[t] = (docFreq[t] || 0) + 1; });
+
+                // Title frequency (weighted higher)
+                const titleFreq = {};
+                titleTokens.forEach(t => { titleFreq[t] = (titleFreq[t] || 0) + 1; });
+
+                let score = 0;
+                let matchedTerms = 0;
+
+                queryTokens.forEach(qt => {
+                    // Exact match
+                    if (docFreq[qt]) {
+                        score += (docFreq[qt] / allDocTokens.length) * 1.0; // TF
+                        matchedTerms++;
+                    }
+                    // Title match bonus (3x weight)
+                    if (titleFreq[qt]) {
+                        score += (titleFreq[qt] / Math.max(titleTokens.length, 1)) * 3.0;
+                    }
+                    // Partial/substring match
+                    allDocTokens.forEach(dt => {
+                        if (dt !== qt && (dt.includes(qt) || qt.includes(dt)) && Math.min(dt.length, qt.length) >= 3) {
+                            score += 0.3;
+                        }
+                    });
+                });
+
+                // Coverage bonus: what % of query terms were found?
+                const coverage = queryTokens.length > 0 ? matchedTerms / queryTokens.length : 0;
+                score *= (0.5 + coverage * 0.5); // Scale by coverage
+
+                // Normalize
+                return Math.min(score / Math.max(queryTokens.length, 1), 1.0);
+            }
+
+            // ─── 3. DOMAIN AUTHORITY SCORING ─────────────────────────
+            const DOMAIN_AUTHORITY = {
+                // Tier 1: Highly authoritative (0.9-1.0)
+                'gov': 1.0, 'edu': 0.95,
+                'reuters.com': 0.95, 'apnews.com': 0.95, 'bbc.com': 0.95, 'bbc.co.uk': 0.95,
+                'nytimes.com': 0.93, 'washingtonpost.com': 0.93, 'theguardian.com': 0.93,
+                'nature.com': 0.95, 'sciencedirect.com': 0.95, 'pubmed.ncbi.nlm.nih.gov': 0.95,
+                'arxiv.org': 0.92, 'scholar.google.com': 0.92,
+                'who.int': 0.95, 'cdc.gov': 0.95, 'nih.gov': 0.95,
+                // Tier 2: Major reliable sources (0.75-0.89)
+                'en.wikipedia.org': 0.85, 'wikipedia.org': 0.85,
+                'cnn.com': 0.82, 'nbcnews.com': 0.82, 'abcnews.go.com': 0.82,
+                'foxnews.com': 0.78, 'cbsnews.com': 0.82,
+                'bloomberg.com': 0.88, 'cnbc.com': 0.85, 'wsj.com': 0.88,
+                'techcrunch.com': 0.80, 'arstechnica.com': 0.82, 'wired.com': 0.80,
+                'stackoverflow.com': 0.85, 'github.com': 0.82,
+                'developer.mozilla.org': 0.90, 'docs.python.org': 0.90,
+                'mayoclinic.org': 0.90, 'webmd.com': 0.78, 'healthline.com': 0.75,
+                // Tier 3: Good sources (0.55-0.74)
+                'reddit.com': 0.60, 'news.ycombinator.com': 0.65,
+                'medium.com': 0.55, 'substack.com': 0.58,
+                'investopedia.com': 0.75, 'britannica.com': 0.80,
+                'imdb.com': 0.72, 'rottentomatoes.com': 0.70,
+                'espn.com': 0.75, 'sports.yahoo.com': 0.72,
+                // Tier 4: Lower authority (0.3-0.54)
+                'quora.com': 0.45, 'answers.com': 0.35,
+                'pinterest.com': 0.30, 'tiktok.com': 0.30,
+            };
+
+            function getAuthorityScore(url) {
+                if (!url) return 0.5; // default
+                try {
+                    const hostname = new URL(url).hostname.replace('www.', '');
+                    // Check exact domain
+                    if (DOMAIN_AUTHORITY[hostname]) return DOMAIN_AUTHORITY[hostname];
+                    // Check TLD
+                    const tld = hostname.split('.').pop();
+                    if (DOMAIN_AUTHORITY[tld]) return DOMAIN_AUTHORITY[tld];
+                    // Check parent domain (e.g., news.bbc.co.uk → bbc.co.uk)
+                    const parts = hostname.split('.');
+                    for (let i = 1; i < parts.length; i++) {
+                        const parent = parts.slice(i).join('.');
+                        if (DOMAIN_AUTHORITY[parent]) return DOMAIN_AUTHORITY[parent];
+                    }
+                    return 0.5; // Unknown domain default
+                } catch { return 0.5; }
+            }
+
+            // ─── 4. SOURCE QUALITY SCORING ───────────────────────────
+            const SOURCE_QUALITY = {
+                'SearXNG': 0.85, 'Weather (Open-Meteo)': 0.90,
+                'Stocks (Yahoo Finance)': 0.85, 'Crypto (CoinGecko)': 0.85,
+                'Currency (Frankfurter)': 0.85, 'Wikipedia': 0.80,
+                'Wikimedia REST': 0.80, 'Wikidata': 0.75,
+                'DuckDuckGo': 0.75, 'DDG Extended': 0.70,
+                'DDG Definition': 0.75, 'DDG Infobox': 0.80, 'DDG Related': 0.60,
+                'Reddit': 0.55, 'Reddit News': 0.60,
+                'Hacker News': 0.65, 'StackOverflow': 0.80,
+                'StackExchange': 0.75, 'StackExchange Multi': 0.70,
+                'arXiv': 0.85, 'CrossRef': 0.80,
+                'Books (Open Library)': 0.70, 'iTunes': 0.65,
+                'GitHub': 0.75, 'Wiktionary': 0.70, 'DateTime': 0.95,
+            };
+
+            // ─── 5. CONTENT-BASED DEDUPLICATION ──────────────────────
+            function getBigrams(text) {
+                const tokens = text.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(Boolean);
+                const bigrams = new Set();
+                for (let i = 0; i < tokens.length - 1; i++) {
+                    bigrams.add(tokens[i] + ' ' + tokens[i + 1]);
+                }
+                return bigrams;
+            }
+
+            function jaccardSimilarity(set1, set2) {
+                if (set1.size === 0 && set2.size === 0) return 1;
+                let intersection = 0;
+                for (const item of set1) { if (set2.has(item)) intersection++; }
+                return intersection / (set1.size + set2.size - intersection);
+            }
+
+            function contentDedup(results) {
+                const kept = [];
+                const contentSigs = [];
+
+                for (const r of results) {
+                    const content = (r.title || '') + ' ' + (r.snippet || '');
+                    const bigrams = getBigrams(content);
+
+                    // Check similarity against already-kept results
+                    let isDuplicate = false;
+                    for (const existing of contentSigs) {
+                        if (jaccardSimilarity(bigrams, existing) > 0.45) {
+                            isDuplicate = true;
+                            break;
+                        }
+                    }
+
+                    if (!isDuplicate) {
+                        kept.push(r);
+                        contentSigs.push(bigrams);
+                    }
+                }
+                return kept;
+            }
+
+            // ─── 6. COMBINED SCORING & RANKING ───────────────────────
+            const queryData = expandQuery(query);
+            const queryTokens = queryData.original;
+            const expandedTokens = queryData.expanded;
+            console.log(`[Search Pipeline] Query tokens: [${queryTokens.join(', ')}]`);
+            console.log(`[Search Pipeline] Expanded tokens: [${expandedTokens.join(', ')}]`);
+
+            // Score each result
+            results.forEach(r => {
+                // Relevance: how well does this result match the query?
+                const relevanceOriginal = computeRelevance(queryTokens, r);
+                const relevanceExpanded = computeRelevance(expandedTokens, r);
+                r._relevance = Math.max(relevanceOriginal, relevanceExpanded * 0.8); // Expanded matches worth 80%
+
+                // Authority: how trustworthy is this source domain?
+                r._authority = getAuthorityScore(r.url);
+
+                // Source quality: how reliable is this API source?
+                r._sourceQuality = SOURCE_QUALITY[r._source] || 0.5;
+
+                // Combined score (weighted formula)
+                r._score = (
+                    r._relevance * 0.50 +  // 50% relevance to query
+                    r._authority * 0.25 +  // 25% domain authority
+                    r._sourceQuality * 0.15 + // 15% source API quality
+                    0.10                       // 10% base (diversity cushion)
+                );
+            });
+
+            // ─── 7. FILTER LOW-RELEVANCE RESULTS ─────────────────────
+            // Remove results that don't match the query at all
+            const MIN_RELEVANCE = 0.03;
+            const relevant = results.filter(r => r._relevance >= MIN_RELEVANCE);
+            const filtered = results.length - relevant.length;
+            if (filtered > 0) {
+                console.log(`[Search Pipeline] Filtered out ${filtered} irrelevant results (below ${MIN_RELEVANCE} relevance)`);
+            }
+
+            // ─── 8. DEDUPLICATE ──────────────────────────────────────
+            // First: URL-based dedup
+            const seenUrls = new Set();
+            const urlDeduped = [];
+            for (const r of relevant) {
+                let key = '';
+                try {
+                    const u = new URL(r.url || '');
+                    key = `${u.hostname}${u.pathname}`.toLowerCase().replace(/\/+$/, '');
+                } catch {
+                    key = (r.url || r.title || '').toLowerCase().replace(/\/+$/, '');
+                }
+                if (!seenUrls.has(key)) {
+                    seenUrls.add(key);
+                    urlDeduped.push(r);
+                }
+            }
+            // Second: Content-based dedup (catches same content from different URLs)
+            const deduped = contentDedup(urlDeduped);
+
+            // ─── 9. RANK BY COMBINED SCORE ───────────────────────────
+            deduped.sort((a, b) => b._score - a._score);
+
+            // ─── 10. DIVERSITY PASS ──────────────────────────────────
+            // After ranking, ensure top results aren't all from one source.
+            // If the top 5 are all from one source, interleave others.
+            const ranked = [];
+            const sourceCountInTop = {};
+            const MAX_PER_SOURCE_IN_TOP_10 = 3;
+
+            // First pass: pick top results with diversity constraint
+            const pending = [...deduped];
+            while (ranked.length < 25 && pending.length > 0) {
+                let picked = false;
+                for (let i = 0; i < pending.length; i++) {
+                    const src = pending[i]._source || 'Unknown';
+                    const inTop = sourceCountInTop[src] || 0;
+                    // Allow up to MAX_PER_SOURCE for top 10, then relax
+                    if (ranked.length < 10 && inTop >= MAX_PER_SOURCE_IN_TOP_10) continue;
+                    sourceCountInTop[src] = inTop + 1;
+                    ranked.push(pending[i]);
+                    pending.splice(i, 1);
+                    picked = true;
+                    break;
+                }
+                // If no diverse pick found, just take the highest scored
+                if (!picked && pending.length > 0) {
+                    const r = pending.shift();
+                    ranked.push(r);
+                }
+            }
+
+            // ─── 11. LOG FINAL RANKINGS ──────────────────────────────
+            console.log(`[Search Pipeline] Final: ${ranked.length} results from ${new Set(ranked.map(r => r._source)).size} sources`);
+            ranked.slice(0, 10).forEach((r, i) => {
+                console.log(`  [${i + 1}] score=${r._score.toFixed(3)} rel=${r._relevance.toFixed(3)} auth=${r._authority.toFixed(2)} src=${r._source} | ${(r.title || '').substring(0, 60)}`);
+            });
+
+            return ranked.slice(0, 25);
+        }
 
         // ── Click-outside / Escape to close any modal ──────────────────────────────
         const MODAL_CLOSE_FNS = {
@@ -3811,6 +5281,98 @@
             // Uses modelApiText (clean: user text + text file contents, NO image placeholders)
             // Images travel separately via openaiContentParts / imageBase64s
             let modelInputText = modelApiText;
+
+            // ── Smart Search Query Builder ─────────────────────────────
+            // Detects follow-up messages ("tell me more", "explain that",
+            // "what about...") and builds a proper search query from the
+            // conversation context instead of searching the literal text.
+            function buildSearchQuery(rawText, chatMessages) {
+                const lower = rawText.trim().toLowerCase();
+                const words = lower.split(/\s+/);
+
+                // Patterns that indicate a follow-up, not a new topic
+                const followUpPatterns = [
+                    /^(tell|explain|elaborate|expand|say|give)\s+(me\s+)?(more|further|details?|about|that)/i,
+                    /^(what|how)\s+(about|do you mean|does that|is that|else)/i,
+                    /^(can you|could you|please)\s+(tell|explain|elaborate|expand|clarify|go\s+(into|on)|give)/i,
+                    /^(more|continue|go on|keep going|and\??|so\??|why\??|how\??|really\??)$/i,
+                    /^(yes|yeah|yep|ok|okay|sure|right|exactly|correct)\s*(,|\.|\?|!)?\s*(tell|explain|more|and|but|so|what|how|why)?/i,
+                    /^(what|who|where|when|why|how)\s+(is|are|was|were|did|do|does|about)\s+(it|that|this|they|them|those|the\s+same)/i,
+                    /^(that'?s?|it'?s?|this)\s+(interesting|cool|great|good|nice|wow)/i,
+                    /^(in|with)\s+(more\s+)?detail/i,
+                    /^(summarize|sum\s+up|recap|overview|tldr|tl;?dr)/i,
+                    /^explain\s+that/i,
+                    /^(go|dig)\s+(deeper|further|on)/i,
+                    /^(and|but|so|also)\s+(what|how|why|tell|explain)/i
+                ];
+
+                const isFollowUpPattern = followUpPatterns.some(p => p.test(lower));
+
+                // Short queries (<=3 words) are follow-ups ONLY if they lack
+                // topical content (proper nouns, specific subjects, action verbs)
+                const hasTopicContent = /[A-Z][a-z]{2,}/.test(rawText) || // Proper noun like "Trump", "Dallas"
+                    /\b(weather|news|stock|crypto|bitcoin|price|score|recipe|how to|latest|current|what is|who is|define|meaning)\b/i.test(lower);
+                const isShortFollowUp = words.length <= 3 && !hasTopicContent;
+
+                const isFollowUp = isFollowUpPattern || isShortFollowUp;
+
+                if (isFollowUp && chatMessages && chatMessages.length >= 2) {
+                    // Extract the topic from the conversation history
+                    const userMessages = chatMessages
+                        .filter(m => m.role === 'user')
+                        .slice(-3)
+                        .map(m => m.content)
+                        .filter(c => c && c.length > 5);
+
+                    if (userMessages.length > 0) {
+                        // Use the most substantive previous user message as the topic
+                        let topicMessage = userMessages.find(m => m.split(/\s+/).length >= 4) || userMessages[0];
+                        const contextQuery = topicMessage.slice(0, 150);
+                        console.log(`[Search] Follow-up detected: "${rawText}" → searching for topic: "${contextQuery}"`);
+                        return contextQuery;
+                    }
+                }
+
+                // Skip search for single meaningless words
+                if (words.length <= 1 && !lower.match(/^(weather|news|stocks?|crypto|bitcoin|price|score)/)) {
+                    return null;
+                }
+
+                return rawText;
+            }
+
+            // ── Web Search ────────────────────────────────────────────────
+            let webSearchResults = null;
+            if (webSearchEnabled && text && !isRetry) {
+                try {
+                    // Build a smart search query (handles follow-ups)
+                    const chatMessages = currentChat?.messages || [];
+                    const searchQuery = buildSearchQuery(text, chatMessages);
+
+                    const loadingEl = document.getElementById(loadingId);
+                    let searchIndicator = null;
+
+                    if (searchQuery) {
+                        if (loadingEl) {
+                            searchIndicator = document.createElement('div');
+                            searchIndicator.className = 'web-search-indicator';
+                            searchIndicator.innerHTML = '<i class="fa-solid fa-spinner"></i> Searching 20+ sources across 70+ engines...';
+                            loadingEl.parentNode.insertBefore(searchIndicator, loadingEl);
+                        }
+                        webSearchResults = await performWebSearch(searchQuery);
+                    } else {
+                        console.log('[Search] Skipped search — query too vague or trivial');
+                    }
+                    // Update indicator to show how many sources returned
+                    if (searchIndicator && webSearchResults) {
+                        const count = webSearchResults.length;
+                        const srcCount = new Set(webSearchResults.map(r => r._source).filter(Boolean)).size;
+                        const domainCount = new Set(webSearchResults.map(r => { try { return new URL(r.url).hostname; } catch { return ''; } }).filter(Boolean)).size;
+                        searchIndicator.innerHTML = `<i class="fa-solid fa-check" style="animation:none"></i> Found ${count} results from ${srcCount} APIs across ${domainCount} websites`;
+                        setTimeout(() => { if (searchIndicator.parentNode) searchIndicator.remove(); }, 3000);
+                    }
+                } catch (err) { console.warn('Web search failed:', err); }
+            }
             const currentLang = localStorage.getItem('gpt_local_language') || 'en-US';
             const isImageModel = ['dall-e', 'dalle', 'midjourney', 'stable-diffusion', 'sdxl', 'flux', 'imagen', 'image'].some(k => activeEndpoint.model.toLowerCase().includes(k));
 
@@ -3846,6 +5408,42 @@
             // Append Math/KaTeX formatting instruction
             const katexInstruction = "CRITICAL RULE: DO NOT use, mention, or create any mathematics, equations, or formulas unless the user's prompt is explicitly about math or science. Never use math for analogies or casual conversation. ONLY if the user's prompt requires a mathematical answer, format your equations strictly using KaTeX markdown (`$$` for block, `\\(` and `\\)` for inline) without announcing it.";
             sysContent += (sysContent ? '\n\n' : '') + katexInstruction;
+
+            // Inject web search results with strong usage instructions
+            if (webSearchResults && webSearchResults.length > 0) {
+                // Collect unique source names from the results
+                const uniqueSources = [...new Set(webSearchResults.map(r => r._source).filter(Boolean))];
+                // Collect unique domains from results (for SearXNG especially)
+                const uniqueDomains = [...new Set(webSearchResults.map(r => {
+                    try { return new URL(r.url).hostname.replace('www.', ''); } catch { return ''; }
+                }).filter(Boolean))];
+
+                let sc = `═══ LIVE WEB SEARCH RESULTS ═══\nRetrieved: ${new Date().toLocaleString()}\nAPIs queried: SearXNG (aggregates Google, Bing, Yahoo, Brave, Mojeek, Startpage, Qwant & 60+ engines), Reddit, DuckDuckGo, Wikipedia, Wikimedia, Wikidata, Wiktionary, Hacker News, StackExchange (multi-site), arXiv, CrossRef, Open-Meteo, CoinGecko, Frankfurter, Open Library, iTunes, GitHub, Yahoo Finance\nSources that returned data: ${uniqueSources.join(', ')}\nUnique website domains in results: ${uniqueDomains.slice(0, 15).join(', ')}${uniqueDomains.length > 15 ? ` (+${uniqueDomains.length - 15} more)` : ''}\nTotal results: ${webSearchResults.length}\n\n`;
+                webSearchResults.forEach((r, i) => {
+                    sc += `━━━ Result [${i + 1}]${r._source ? ' [' + r._source + ']' : ''} ━━━\nTitle: ${r.title}\n${r.url ? 'Source URL: ' + r.url + '\n' : ''}Data: ${r.snippet}\n\n`;
+                });
+                sc += `═══ MANDATORY INSTRUCTIONS ═══
+YOU HAVE REAL-TIME DATA ACCESS. The ${webSearchResults.length} results above are LIVE data retrieved just now from ${uniqueDomains.length} different websites via ${uniqueSources.length} search APIs. You MUST:
+1. USE this data directly in your response — do NOT say "I don't have access to real-time data" or "I cannot browse the internet." You literally just searched the web across 70+ search engines.
+2. Present factual data (weather, stocks, prices, scores) with specific numbers from the results above.
+3. For weather queries: report the EXACT temperature, conditions, humidity, wind from the data above.
+4. For stock/crypto queries: report the EXACT price, change %, and market data from the data above.
+5. Cite sources as markdown links like [Source Title](url) at the end of relevant statements.
+6. Synthesize information from MULTIPLE results and MULTIPLE sources to give a comprehensive answer.
+7. If some results are irrelevant, skip them — but ALWAYS use the relevant ones.
+8. NEVER claim you cannot access current information — the search results above ARE current information.
+9. Prefer diverse sources: use data from Reddit, news sites, academic papers, official pages — NOT just Wikipedia.`;
+                sysContent += '\n\n' + sc;
+            }
+            // Always inject current date/time context when search is active
+            if (webSearchEnabled) {
+                sysContent += `\n\nCURRENT DATE/TIME: ${new Date().toLocaleString()} (user's local time). You have web search capabilities with access to live data from 20+ APIs and 70+ search engines. Use this for time-sensitive queries.`;
+            }
+            // Inject user location
+            if (userLocation) {
+                const parts = [userLocation.city, userLocation.state, userLocation.country].filter(Boolean);
+                if (parts.length) sysContent += `\n\nUSER LOCATION: ${parts.join(', ')} (${userLocation.lat.toFixed(2)}, ${userLocation.lon.toFixed(2)}). Use for local queries only.`;
+            }
 
             // Broad check for models/endpoints that often reject the 'system' role ("Developer instructions")
             const modelNameLower = (activeEndpoint.model || '').toLowerCase();
@@ -3913,6 +5511,7 @@
             }
 
             // ── Build the live assistant message container ─────────────────────────
+            document.querySelectorAll('.web-search-indicator').forEach(el => el.remove());
             removeElement(loadingId);
             const streamMsgDiv = document.createElement('div');
             streamMsgDiv.dataset.role = 'assistant';
