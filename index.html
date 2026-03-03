@@ -2632,24 +2632,21 @@
                             <i class="fa-solid fa-plus text-lg"></i>
                         </button>
 
+                        <button type="button" id="web-search-toggle" onclick="toggleWebSearch()" title="Search the web"
+                            class="web-search-btn p-2 ml-1 self-end mb-1.5 text-gpt-muted hover:text-gpt-text hover:bg-gpt-border rounded-full transition-all flex items-center justify-center flex-shrink-0 cursor-pointer border border-transparent h-[36px] w-[36px]">
+                            <i class="fa-solid fa-globe text-lg"></i>
+                        </button>
+
                         <textarea id="message-input" data-i18n="message_input"
                             class="w-full max-h-[200px] bg-transparent text-gpt-text border-none focus:ring-0 resize-none pt-3 pb-3 px-3 outline-none selectable my-0.5 text-[15px]"
                             placeholder="Ask anything" rows="1" style="min-height: 48px;"
                             oninput="this.style.height = 'auto'; this.style.height = (this.scrollHeight) + 'px'; updateSendButtonState();"
                             onkeydown="if(event.key === 'Tab') { event.preventDefault(); const start = this.selectionStart; const end = this.selectionEnd; this.value = this.value.substring(0, start) + '    ' + this.value.substring(end); this.selectionStart = this.selectionEnd = start + 4; updateSendButtonState(); } else if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); handleSend(event); }"></textarea>
                     </div>
-                    <!-- Bottom Toolbar -->
-                    <div class="flex items-center gap-1 px-3 pb-2 pt-0">
-                        <button type="button" id="web-search-toggle" onclick="toggleWebSearch()" title="Search the web"
-                            class="web-search-btn flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all cursor-pointer border border-transparent text-gpt-muted hover:text-gpt-text hover:bg-gpt-hover">
-                            <i class="fa-solid fa-globe text-[13px]"></i>
-                            <span>Search</span>
-                        </button>
-                    </div>
 
-                    <!-- Send Button - absolutely positioned, vertically centered in the form -->
+                    <!-- Send Button - absolutely positioned -->
                     <button type="submit" id="send-button" title="Send message" disabled
-                        class="absolute right-3 top-1/2 -translate-y-1/2 bg-gpt-primary text-gpt-primaryText rounded-full h-9 w-9 flex items-center justify-center shrink-0 disabled:cursor-not-allowed transition-all opacity-30 hover:opacity-100"
+                        class="absolute right-3 bottom-[6px] bg-gpt-primary text-gpt-primaryText rounded-full h-9 w-9 flex items-center justify-center shrink-0 disabled:cursor-not-allowed transition-all opacity-30 hover:opacity-100"
                         style="z-index: 5;">
                         <i class="fa-solid fa-arrow-up text-sm"></i>
                     </button>
