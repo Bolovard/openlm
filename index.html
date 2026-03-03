@@ -2597,7 +2597,7 @@
 
         <!-- Chat Area -->
         <div class="flex-1 overflow-y-auto w-full relative" id="chat-container">
-            <div class="max-w-3xl mx-auto w-full min-h-full flex flex-col px-4 pt-8 pb-32 selectable"
+            <div class="max-w-3xl mx-auto w-full min-h-full flex flex-col px-4 pt-8 pb-52 selectable"
                 id="chat-messages">
 
                 <!-- Welcome Screen -->
@@ -2611,10 +2611,9 @@
             </div>
         </div>
 
-        <!-- Input Area -->
         <div id="input-area"
-            class="absolute bottom-0 left-0 w-full bg-gradient-to-t from-gpt-main via-gpt-main to-transparent pt-10 pb-6 px-4 md:px-0 welcome-mode">
-            <div class="max-w-3xl mx-auto w-full relative">
+            class="absolute bottom-0 left-0 w-full bg-gradient-to-t from-gpt-main via-gpt-main to-transparent pt-10 pb-6 px-4 md:px-0 welcome-mode pointer-events-none">
+            <div class="max-w-3xl mx-auto w-full relative pointer-events-auto">
                 <form id="chat-form" onsubmit="handleSend(event)"
                     class="relative flex flex-col bg-gpt-input border-0 rounded-[26px] focus-within:bg-gpt-hover transition-all z-20">
 
