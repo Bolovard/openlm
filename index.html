@@ -2407,26 +2407,58 @@
         .web-search-indicator {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            font-size: 12px;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 500;
             color: #3b82f6;
-            padding: 3px 10px;
-            border-radius: 999px;
-            background: rgba(59, 130, 246, 0.08);
-            margin-bottom: 6px;
-            animation: searchPulse 1.5s ease-in-out infinite;
+            padding: 8px 16px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(147, 51, 234, 0.06));
+            border: 1px solid rgba(59, 130, 246, 0.12);
+            margin-bottom: 8px;
+            animation: searchPulse 2s ease-in-out infinite;
+            transition: all 0.4s ease;
         }
 
         .dark .web-search-indicator {
             color: #60a5fa;
-            background: rgba(96, 165, 250, 0.1);
+            background: linear-gradient(135deg, rgba(96, 165, 250, 0.1), rgba(167, 139, 250, 0.08));
+            border-color: rgba(96, 165, 250, 0.15);
+        }
+
+        .web-search-indicator.phase-reading {
+            color: #8b5cf6;
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(59, 130, 246, 0.06));
+            border-color: rgba(139, 92, 246, 0.12);
+        }
+
+        .dark .web-search-indicator.phase-reading {
+            color: #a78bfa;
+            background: linear-gradient(135deg, rgba(167, 139, 250, 0.1), rgba(96, 165, 250, 0.08));
+        }
+
+        .web-search-indicator.phase-synthesizing {
+            color: #10b981;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(59, 130, 246, 0.06));
+            border-color: rgba(16, 185, 129, 0.12);
+        }
+
+        .dark .web-search-indicator.phase-synthesizing {
+            color: #34d399;
+            background: linear-gradient(135deg, rgba(52, 211, 153, 0.1), rgba(96, 165, 250, 0.08));
+        }
+
+        .web-search-indicator.phase-done {
+            color: #10b981;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.06), rgba(59, 130, 246, 0.04));
+            border-color: rgba(16, 185, 129, 0.15);
         }
 
         @keyframes searchPulse {
 
             0%,
             100% {
-                opacity: 0.7;
+                opacity: 0.75;
             }
 
             50% {
@@ -2435,8 +2467,12 @@
         }
 
         .web-search-indicator i {
-            font-size: 11px;
+            font-size: 12px;
             animation: searchSpin 1.2s linear infinite;
+        }
+
+        .web-search-indicator.phase-done i {
+            animation: none;
         }
 
         @keyframes searchSpin {
@@ -2447,6 +2483,79 @@
             to {
                 transform: rotate(360deg);
             }
+        }
+
+        /* ── Autocomplete Dropdown ──────────────────────────────────── */
+        .autocomplete-dropdown {
+            position: absolute;
+            bottom: calc(100% + 6px);
+            left: 12px;
+            right: 12px;
+            background: var(--gpt-main, #ffffff);
+            border: 1px solid var(--gpt-border, rgba(0, 0, 0, 0.1));
+            border-radius: 14px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.08);
+            backdrop-filter: blur(20px);
+            overflow: hidden;
+            z-index: 100;
+            display: none;
+            max-height: 260px;
+            overflow-y: auto;
+        }
+
+        .dark .autocomplete-dropdown {
+            background: var(--gpt-main, #1e1e2e);
+            border-color: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .autocomplete-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            color: var(--gpt-text, #333);
+            transition: background 0.15s;
+            border-bottom: 1px solid rgba(128, 128, 128, 0.06);
+        }
+
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        .autocomplete-item:hover,
+        .autocomplete-item.active {
+            background: rgba(59, 130, 246, 0.08);
+        }
+
+        .dark .autocomplete-item:hover,
+        .dark .autocomplete-item.active {
+            background: rgba(96, 165, 250, 0.1);
+        }
+
+        .autocomplete-item i {
+            color: var(--gpt-muted, #888);
+            font-size: 12px;
+            width: 16px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .autocomplete-item .ac-text {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .autocomplete-item .ac-type {
+            font-size: 10px;
+            color: var(--gpt-muted, #999);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
         }
 
         /* ── End Notes Modal ────────────────────────────────────────── */
@@ -2615,6 +2724,9 @@
         <div id="input-area"
             class="absolute bottom-0 left-0 w-full bg-gradient-to-t from-gpt-main via-gpt-main to-transparent pt-10 pb-6 px-4 md:px-0 welcome-mode pointer-events-none">
             <div class="max-w-3xl mx-auto w-full relative pointer-events-auto">
+                <!-- Autocomplete Dropdown -->
+                <div id="autocomplete-dropdown" class="autocomplete-dropdown"></div>
+
                 <form id="chat-form" onsubmit="handleSend(event)"
                     class="relative flex flex-col bg-gpt-input border-0 rounded-[26px] focus-within:bg-gpt-hover transition-all z-20">
 
@@ -2640,8 +2752,8 @@
                         <textarea id="message-input" data-i18n="message_input"
                             class="w-full max-h-[200px] bg-transparent text-gpt-text border-none focus:ring-0 resize-none pt-3 pb-3 px-3 outline-none selectable my-0.5 text-[15px]"
                             placeholder="Ask anything" rows="1" style="min-height: 48px;"
-                            oninput="this.style.height = 'auto'; this.style.height = (this.scrollHeight) + 'px'; updateSendButtonState();"
-                            onkeydown="if(event.key === 'Tab') { event.preventDefault(); const start = this.selectionStart; const end = this.selectionEnd; this.value = this.value.substring(0, start) + '    ' + this.value.substring(end); this.selectionStart = this.selectionEnd = start + 4; updateSendButtonState(); } else if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); handleSend(event); }"></textarea>
+                            oninput="this.style.height = 'auto'; this.style.height = (this.scrollHeight) + 'px'; updateSendButtonState(); handleAutocompleteInput(this.value);"
+                            onkeydown="handleAutocompleteKeydown(event, this) || (event.key === 'Tab' ? (event.preventDefault(), (function(el){ const s=el.selectionStart, e=el.selectionEnd; el.value=el.value.substring(0,s)+'    '+el.value.substring(e); el.selectionStart=el.selectionEnd=s+4; updateSendButtonState(); })(this)) : event.key === 'Enter' && !event.shiftKey ? (event.preventDefault(), handleSend(event)) : void 0)"></textarea>
                     </div>
 
                     <!-- Send Button - absolutely positioned -->
@@ -4215,6 +4327,36 @@
         // sources are added when query type matches. Results are
         // deduplicated and interleaved for source diversity.
         async function performWebSearch(query) {
+            // ─── Advanced Operators Preprocessing ────────────────────
+            let processedQuery = query;
+            let exactPhrases = [];
+            let excludeTerms = [];
+            let siteFilter = null;
+
+            // Extract "exact phrases"
+            const phraseMatches = query.match(/"([^"]+)"/g);
+            if (phraseMatches) {
+                exactPhrases = phraseMatches.map(p => p.replace(/"/g, ''));
+                processedQuery = processedQuery.replace(/"[^"]+"/g, '').trim();
+            }
+            // Extract -excluded terms
+            const excludeMatches = query.match(/(?:^|\s)-(\S+)/g);
+            if (excludeMatches) {
+                excludeTerms = excludeMatches.map(e => e.trim().replace(/^-/, '').toLowerCase());
+                processedQuery = processedQuery.replace(/(?:^|\s)-\S+/g, '').trim();
+            }
+            // Extract site:domain.com filter
+            const siteMatch = query.match(/site:(\S+)/i);
+            if (siteMatch) {
+                siteFilter = siteMatch[1].toLowerCase().replace(/^www\./, '');
+                processedQuery = processedQuery.replace(/site:\S+/i, '').trim();
+            }
+            // Reconstruct query for API calls (exact phrases added back without quotes)
+            const apiQuery = (processedQuery + ' ' + exactPhrases.join(' ')).trim() || query;
+            if (exactPhrases.length || excludeTerms.length || siteFilter) {
+                console.log(`[Search Operators] phrases=[${exactPhrases}] exclude=[${excludeTerms}] site=${siteFilter || 'none'} apiQuery="${apiQuery}"`);
+            }
+
             const results = [];
             const promises = [];
             const sourceLog = {};
@@ -4226,7 +4368,6 @@
                             const arr = Array.isArray(r) ? r : (r ? [r] : []);
                             if (arr.length > 0) {
                                 sourceLog[name] = arr.length;
-                                // Tag each result with its source for diversity sorting
                                 arr.forEach(item => { if (!item._source) item._source = name; });
                                 results.push(...arr);
                             }
@@ -4240,8 +4381,8 @@
             };
 
             // ─── Synchronous sources ──────────────────────────────────
-            if (isDateTimeQuery(query)) {
-                const dtInfo = getDateTimeInfo(query);
+            if (isDateTimeQuery(apiQuery)) {
+                const dtInfo = getDateTimeInfo(apiQuery);
                 dtInfo._source = 'DateTime';
                 results.push(dtInfo);
                 sourceLog['DateTime'] = 1;
@@ -4257,92 +4398,92 @@
             // Google, Bing, Yahoo, DuckDuckGo, Brave, Mojeek, Startpage,
             // Qwant, and 60+ other search engines. Returns results from
             // ANY website on the internet.
-            track('SearXNG (70+ engines)', getSearXNGResults(query));
+            track('SearXNG (70+ engines)', getSearXNGResults(apiQuery));
 
             // Reddit — millions of communities discussing every topic
-            track('Reddit', getRedditResults(query));
+            track('Reddit', getRedditResults(apiQuery));
 
             // DuckDuckGo Instant Answers — definitions, calculations, facts
-            track('DuckDuckGo', getDuckDuckGoAnswer(query));
+            track('DuckDuckGo', getDuckDuckGoAnswer(apiQuery));
 
             // DuckDuckGo Extended — definitions, infoboxes, related topics
-            track('DDG Extended', getDuckDuckGoWebResults(query));
+            track('DDG Extended', getDuckDuckGoWebResults(apiQuery));
 
             // Wikipedia (limited to 2 results for diversity)
-            track('Wikipedia', getWikipediaExcerpts(query));
+            track('Wikipedia', getWikipediaExcerpts(apiQuery));
 
             // Wikimedia REST — structured summaries
-            track('Wikimedia REST', getWikimediaRestSummary(query));
+            track('Wikimedia REST', getWikimediaRestSummary(apiQuery));
 
             // Wikidata — entity data
-            track('Wikidata', getWikidataResults(query));
+            track('Wikidata', getWikidataResults(apiQuery));
 
             // Wiktionary — definitions
-            track('Wiktionary', getWiktionaryDefinitions(query));
+            track('Wiktionary', getWiktionaryDefinitions(apiQuery));
 
             // Hacker News — tech, science, business news & discussions
-            track('Hacker News', getHackerNewsResults(query));
+            track('Hacker News', getHackerNewsResults(apiQuery));
 
             // Reddit News — from r/news, r/worldnews, r/science, etc.
-            track('Reddit News', getRedditNews(query));
+            track('Reddit News', getRedditNews(apiQuery));
 
             // StackExchange multi-site (SuperUser, ServerFault, etc.)
-            track('StackExchange Multi', getStackExchangeMultiSite(query));
+            track('StackExchange Multi', getStackExchangeMultiSite(apiQuery));
 
             // ═════════════════════════════════════════════════════════
             // ═══ TIER 2: SPECIALIZED SOURCES (when topic matches) ═══
             // ═════════════════════════════════════════════════════════
 
             // Weather
-            if (isWeatherQuery(query) || /\b(in|near|at|around)\s+[A-Z][a-z]/i.test(query)) {
-                track('Weather (Open-Meteo)', getWeatherData(query).then(w => w ? [w] : []));
+            if (isWeatherQuery(apiQuery) || /\b(in|near|at|around)\s+[A-Z][a-z]/i.test(apiQuery)) {
+                track('Weather (Open-Meteo)', getWeatherData(apiQuery).then(w => w ? [w] : []));
             }
 
             // Stocks
-            if (isStockQuery(query)) {
-                track('Stocks (Yahoo Finance)', getStockData(query));
+            if (isStockQuery(apiQuery)) {
+                track('Stocks (Yahoo Finance)', getStockData(apiQuery));
             }
 
             // Crypto
-            if (isCryptoQuery(query)) {
-                track('Crypto (CoinGecko)', getCryptoData(query));
+            if (isCryptoQuery(apiQuery)) {
+                track('Crypto (CoinGecko)', getCryptoData(apiQuery));
             }
 
             // Currency
-            if (isCurrencyQuery(query)) {
-                track('Currency (Frankfurter)', getCurrencyData(query));
+            if (isCurrencyQuery(apiQuery)) {
+                track('Currency (Frankfurter)', getCurrencyData(apiQuery));
             }
 
             // Programming Q&A
-            if (isProgrammingQuery(query)) {
-                track('StackOverflow', getStackExchangeResults(query));
+            if (isProgrammingQuery(apiQuery)) {
+                track('StackOverflow', getStackExchangeResults(apiQuery));
             }
 
             // Books
-            if (isBookQuery(query)) {
-                track('Books (Open Library)', getOpenLibraryResults(query));
+            if (isBookQuery(apiQuery)) {
+                track('Books (Open Library)', getOpenLibraryResults(apiQuery));
             }
 
             // Music, movies, podcasts
-            if (isMusicMovieQuery(query)) {
-                track('iTunes', getITunesResults(query));
+            if (isMusicMovieQuery(apiQuery)) {
+                track('iTunes', getITunesResults(apiQuery));
             }
 
             // Code repositories
-            if (isGitHubQuery(query)) {
-                track('GitHub', getGitHubResults(query));
+            if (isGitHubQuery(apiQuery)) {
+                track('GitHub', getGitHubResults(apiQuery));
             }
 
             // ═════════════════════════════════════════════════════════
             // ═══ TIER 3: ACADEMIC SOURCES (only for research topics) ═
             // ═════════════════════════════════════════════════════════
-            const isAcademic = /\b(research|study|studies|paper|papers|journal|academic|scientific|science|theory|hypothesis|experiment|peer.?review|citation|thesis|dissertation|professor|university|analysis|methodology|findings|evidence|data|statistics|clinical|medical|biology|chemistry|physics|mathematics|engineering|psychology|sociology|economics|neuroscience|genomics|quantum|molecular|computational|algorithm)\b/i.test(query);
+            const isAcademic = /\b(research|study|studies|paper|papers|journal|academic|scientific|science|theory|hypothesis|experiment|peer.?review|citation|thesis|dissertation|professor|university|analysis|methodology|findings|evidence|data|statistics|clinical|medical|biology|chemistry|physics|mathematics|engineering|psychology|sociology|economics|neuroscience|genomics|quantum|molecular|computational|algorithm)\b/i.test(apiQuery);
 
-            if (isAcademic || isProgrammingQuery(query)) {
+            if (isAcademic || isProgrammingQuery(apiQuery)) {
                 // arXiv scientific papers
-                track('arXiv', getArxivResults(query));
+                track('arXiv', getArxivResults(apiQuery));
                 // CrossRef academic papers
-                track('CrossRef', getCrossRefResults(query));
+                track('CrossRef', getCrossRefResults(apiQuery));
             }
 
             // ─── Wait for ALL sources (generous 12s timeout) ─────────
@@ -4354,12 +4495,42 @@
             // ─── Log results ─────────────────────────────────────────
             const successCount = Object.values(sourceLog).filter(v => typeof v === 'number').length;
             const totalSources = Object.keys(sourceLog).length;
-            console.log(`[Web Search] Query: "${query}"`);
+            console.log(`[Web Search] Query: "${query}" → apiQuery: "${apiQuery}"`);
             console.log(`[Web Search] ${successCount}/${totalSources} sources returned data:`, JSON.stringify(sourceLog));
             console.log(`[Web Search] Raw results: ${results.length}`);
 
+            // ─── Post-filter for advanced operators ──────────────────
+            // Apply exclusion, site filter, and exact phrase checks
+            let operatorFiltered = results;
+            if (excludeTerms.length > 0) {
+                operatorFiltered = operatorFiltered.filter(r => {
+                    const text = ((r.title || '') + ' ' + (r.snippet || '')).toLowerCase();
+                    return !excludeTerms.some(term => text.includes(term));
+                });
+                console.log(`[Search Operators] Excluded ${results.length - operatorFiltered.length} results matching -${excludeTerms.join(' -')}`);
+            }
+            if (siteFilter) {
+                operatorFiltered = operatorFiltered.filter(r => {
+                    try {
+                        const domain = new URL(r.url).hostname.replace('www.', '').toLowerCase();
+                        return domain === siteFilter || domain.endsWith('.' + siteFilter);
+                    } catch { return false; }
+                });
+                console.log(`[Search Operators] site:${siteFilter} → ${operatorFiltered.length} results remaining`);
+            }
+            if (exactPhrases.length > 0) {
+                // Boost results that contain exact phrases (don't filter out, but score boost)
+                operatorFiltered.forEach(r => {
+                    const text = ((r.title || '') + ' ' + (r.snippet || '')).toLowerCase();
+                    const phraseHits = exactPhrases.filter(p => text.includes(p.toLowerCase())).length;
+                    if (phraseHits > 0) {
+                        r._phraseBoost = phraseHits * 0.15; // Applied in scoring below
+                    }
+                });
+            }
+
             // ═════════════════════════════════════════════════════════════
-            // ═══ SEARCH INTELLIGENCE PIPELINE ════════════════════════════
+            // ═══ SEARCH INTELLIGENCE PIPELINE v2 — AI ANSWER ENGINE ══════
             // ═════════════════════════════════════════════════════════════
 
             // ─── 1. TOKENIZATION & QUERY EXPANSION ───────────────────
@@ -4370,6 +4541,65 @@
                     .replace(/[^a-z0-9\s'-]/g, ' ')
                     .split(/\s+/)
                     .filter(w => w.length > 1 && !STOP_WORDS.has(w));
+            }
+
+            // ─── 1b. FUZZY MATCHING (Levenshtein Distance) ──────────
+            function levenshtein(a, b) {
+                if (a.length === 0) return b.length;
+                if (b.length === 0) return a.length;
+                const matrix = [];
+                for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+                for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+                for (let i = 1; i <= b.length; i++) {
+                    for (let j = 1; j <= a.length; j++) {
+                        const cost = b[i - 1] === a[j - 1] ? 0 : 1;
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j] + 1,       // deletion
+                            matrix[i][j - 1] + 1,       // insertion
+                            matrix[i - 1][j - 1] + cost  // substitution
+                        );
+                    }
+                }
+                return matrix[b.length][a.length];
+            }
+
+            function fuzzyMatch(queryToken, docToken, maxDist = 2) {
+                if (queryToken.length < 4 || docToken.length < 4) return false;
+                if (Math.abs(queryToken.length - docToken.length) > maxDist) return false;
+                return levenshtein(queryToken, docToken) <= maxDist;
+            }
+
+            // ─── 1c. QUERY INTENT DETECTION ─────────────────────────
+            function detectQueryIntent(q) {
+                const lower = q.toLowerCase().trim();
+                // Definition intent
+                if (/^(what is|what are|define|definition of|meaning of|explain|who is|who are|who was)\b/i.test(lower) ||
+                    /\b(definition|meaning|explain)\b/i.test(lower)) {
+                    return 'definition';
+                }
+                // Comparison intent
+                if (/\b(vs\.?|versus|compared to|comparison|difference between|better than|or\b.*\bwhich)\b/i.test(lower) ||
+                    /\b(pros and cons|advantages|disadvantages)\b/i.test(lower)) {
+                    return 'comparison';
+                }
+                // How-to intent
+                if (/^(how to|how do|how can|how should|steps to|guide to|tutorial)\b/i.test(lower) ||
+                    /\b(tutorial|guide|walkthrough|step.by.step|instructions|setup|install|configure)\b/i.test(lower)) {
+                    return 'how-to';
+                }
+                // Current events intent
+                if (/\b(latest|news|today|yesterday|this week|this month|recently|current|breaking|happening|2025|2026|right now|update)\b/i.test(lower)) {
+                    return 'current-events';
+                }
+                // Opinion / recommendation intent
+                if (/\b(best|top \d|recommend|should i|review|rating|worth|opinion)\b/i.test(lower)) {
+                    return 'opinion';
+                }
+                // Factual intent
+                if (/^(when|where|how many|how much|how old|how long|how far|how tall)\b/i.test(lower)) {
+                    return 'factual';
+                }
+                return 'general';
             }
 
             // Expand query with related terms for better recall
@@ -4400,6 +4630,24 @@
                     'russia': ['russian', 'moscow', 'putin', 'kremlin'],
                     'china': ['chinese', 'beijing', 'xi jinping'],
                     'climate': ['global warming', 'carbon', 'emissions', 'environment', 'sustainability'],
+                    // ── Additional categories for broader recall ──
+                    'education': ['school', 'university', 'college', 'learning', 'teaching', 'academic', 'student', 'curriculum'],
+                    'food': ['recipe', 'cooking', 'restaurant', 'cuisine', 'meal', 'ingredient', 'nutrition', 'diet'],
+                    'travel': ['flight', 'hotel', 'vacation', 'tourism', 'destination', 'airline', 'booking', 'trip'],
+                    'legal': ['law', 'court', 'attorney', 'lawyer', 'regulation', 'statute', 'legal', 'judge', 'lawsuit'],
+                    'environment': ['pollution', 'recycling', 'conservation', 'wildlife', 'ecosystem', 'biodiversity'],
+                    'space': ['nasa', 'rocket', 'satellite', 'astronaut', 'orbit', 'mars', 'moon', 'telescope'],
+                    'ai': ['artificial intelligence', 'machine learning', 'deep learning', 'neural network', 'chatgpt', 'llm', 'gpt'],
+                    'gaming': ['video game', 'console', 'playstation', 'xbox', 'nintendo', 'steam', 'esports'],
+                    'car': ['automobile', 'vehicle', 'driving', 'engine', 'electric vehicle', 'ev', 'sedan', 'suv'],
+                    'automobile': ['car', 'vehicle', 'automotive'],
+                    'investment': ['investing', 'portfolio', 'bonds', 'mutual fund', 'etf', 'dividend', 'returns'],
+                    'housing': ['real estate', 'mortgage', 'rent', 'apartment', 'property', 'home buying'],
+                    'programming': ['coding', 'developer', 'software', 'code', 'algorithm', 'debug', 'api'],
+                    'database': ['sql', 'mysql', 'postgresql', 'mongodb', 'query', 'schema', 'nosql'],
+                    'security': ['cybersecurity', 'hacking', 'encryption', 'firewall', 'malware', 'virus', 'privacy'],
+                    'fitness': ['exercise', 'workout', 'gym', 'training', 'cardio', 'strength', 'yoga'],
+                    'mental health': ['anxiety', 'depression', 'therapy', 'counseling', 'stress', 'wellbeing', 'mindfulness'],
                 };
                 tokens.forEach(t => {
                     if (synonymMap[t]) synonymMap[t].forEach(s => expansions.add(s));
@@ -4407,102 +4655,160 @@
                 return { original: tokens, expanded: [...expansions] };
             }
 
-            // ─── 2. TF-IDF RELEVANCE SCORING ────────────────────────
-            function computeRelevance(queryTokens, result) {
+            // ─── 2. BM25 RELEVANCE SCORING (replaces TF-IDF) ────────
+            // BM25 with k1=1.5, b=0.75 for term frequency saturation
+            function computeBM25(queryTokens, result, allResults) {
+                const k1 = 1.5, b = 0.75;
                 const titleTokens = tokenize(result.title || '');
                 const snippetTokens = tokenize(result.snippet || '');
                 const allDocTokens = [...titleTokens, ...snippetTokens];
+                const docLen = allDocTokens.length;
 
-                if (allDocTokens.length === 0) return 0;
+                if (docLen === 0) return 0;
+
+                // Average document length across all results
+                const avgDl = allResults.reduce((sum, r) => {
+                    return sum + tokenize((r.title || '') + ' ' + (r.snippet || '')).length;
+                }, 0) / Math.max(allResults.length, 1);
 
                 // Term frequency in document
                 const docFreq = {};
                 allDocTokens.forEach(t => { docFreq[t] = (docFreq[t] || 0) + 1; });
 
-                // Title frequency (weighted higher)
+                // Title frequency (for title boost)
                 const titleFreq = {};
                 titleTokens.forEach(t => { titleFreq[t] = (titleFreq[t] || 0) + 1; });
 
+                // Document frequency (how many results contain each query term) for IDF
+                const N = allResults.length;
+
                 let score = 0;
                 let matchedTerms = 0;
+                let fuzzyMatches = 0;
 
                 queryTokens.forEach(qt => {
-                    // Exact match
-                    if (docFreq[qt]) {
-                        score += (docFreq[qt] / allDocTokens.length) * 1.0; // TF
+                    // Count how many documents contain this term (for IDF)
+                    let df = 0;
+                    allResults.forEach(r => {
+                        const rTokens = tokenize((r.title || '') + ' ' + (r.snippet || ''));
+                        if (rTokens.includes(qt)) df++;
+                    });
+
+                    // IDF component: log((N - df + 0.5) / (df + 0.5) + 1)
+                    const idf = Math.log((N - df + 0.5) / (df + 0.5) + 1);
+
+                    // TF in body (with BM25 saturation)
+                    const tf = docFreq[qt] || 0;
+                    if (tf > 0) {
+                        const tfNorm = (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * (docLen / avgDl)));
+                        score += idf * tfNorm;
                         matchedTerms++;
                     }
-                    // Title match bonus (3x weight)
-                    if (titleFreq[qt]) {
-                        score += (titleFreq[qt] / Math.max(titleTokens.length, 1)) * 3.0;
+
+                    // Title match bonus (3× weight, separate BM25 calculation)
+                    const titleTf = titleFreq[qt] || 0;
+                    if (titleTf > 0) {
+                        const titleLen = titleTokens.length;
+                        const titleAvgDl = Math.max(titleLen, 5); // Titles are short, use reasonable avg
+                        const titleTfNorm = (titleTf * (k1 + 1)) / (titleTf + k1 * (1 - b + b * (titleLen / titleAvgDl)));
+                        score += idf * titleTfNorm * 3.0; // 3× title weight
                     }
-                    // Partial/substring match
+
+                    // Fuzzy matching: if no exact match, try Levenshtein
+                    if (tf === 0 && titleTf === 0) {
+                        let bestFuzzy = false;
+                        for (const dt of allDocTokens) {
+                            if (fuzzyMatch(qt, dt)) {
+                                bestFuzzy = true;
+                                break;
+                            }
+                        }
+                        if (bestFuzzy) {
+                            score += idf * 0.6; // Fuzzy matches worth 60% of exact
+                            fuzzyMatches++;
+                        }
+                    }
+
+                    // Partial / substring match (kept for compound words)
                     allDocTokens.forEach(dt => {
                         if (dt !== qt && (dt.includes(qt) || qt.includes(dt)) && Math.min(dt.length, qt.length) >= 3) {
-                            score += 0.3;
+                            score += 0.2;
                         }
                     });
                 });
 
-                // Coverage bonus: what % of query terms were found?
-                const coverage = queryTokens.length > 0 ? matchedTerms / queryTokens.length : 0;
-                score *= (0.5 + coverage * 0.5); // Scale by coverage
+                // Coverage bonus
+                const totalMatched = matchedTerms + fuzzyMatches;
+                const coverage = queryTokens.length > 0 ? totalMatched / queryTokens.length : 0;
+                score *= (0.5 + coverage * 0.5);
 
-                // Normalize
-                return Math.min(score / Math.max(queryTokens.length, 1), 1.0);
+                // Log fuzzy matches for debugging
+                if (fuzzyMatches > 0) {
+                    console.log(`  [BM25 Fuzzy] "${(result.title || '').substring(0, 40)}" — ${fuzzyMatches} fuzzy match(es)`);
+                }
+
+                // Normalize to 0-1 range
+                return Math.min(score / Math.max(queryTokens.length * 4, 1), 1.0);
             }
 
             // ─── 3. DOMAIN AUTHORITY SCORING ─────────────────────────
             const DOMAIN_AUTHORITY = {
                 // Tier 1: Highly authoritative (0.9-1.0)
-                'gov': 1.0, 'edu': 0.95,
+                'gov': 1.0, 'edu': 0.95, 'mil': 0.90,
                 'reuters.com': 0.95, 'apnews.com': 0.95, 'bbc.com': 0.95, 'bbc.co.uk': 0.95,
                 'nytimes.com': 0.93, 'washingtonpost.com': 0.93, 'theguardian.com': 0.93,
                 'nature.com': 0.95, 'sciencedirect.com': 0.95, 'pubmed.ncbi.nlm.nih.gov': 0.95,
                 'arxiv.org': 0.92, 'scholar.google.com': 0.92,
                 'who.int': 0.95, 'cdc.gov': 0.95, 'nih.gov': 0.95,
+                'nasa.gov': 0.95, 'fda.gov': 0.93, 'sec.gov': 0.93,
                 // Tier 2: Major reliable sources (0.75-0.89)
                 'en.wikipedia.org': 0.85, 'wikipedia.org': 0.85,
                 'cnn.com': 0.82, 'nbcnews.com': 0.82, 'abcnews.go.com': 0.82,
                 'foxnews.com': 0.78, 'cbsnews.com': 0.82,
                 'bloomberg.com': 0.88, 'cnbc.com': 0.85, 'wsj.com': 0.88,
                 'techcrunch.com': 0.80, 'arstechnica.com': 0.82, 'wired.com': 0.80,
+                'theverge.com': 0.78, 'zdnet.com': 0.76, 'cnet.com': 0.76,
                 'stackoverflow.com': 0.85, 'github.com': 0.82,
                 'developer.mozilla.org': 0.90, 'docs.python.org': 0.90,
+                'docs.microsoft.com': 0.88, 'learn.microsoft.com': 0.88,
+                'cloud.google.com': 0.88, 'docs.aws.amazon.com': 0.85,
                 'mayoclinic.org': 0.90, 'webmd.com': 0.78, 'healthline.com': 0.75,
+                'snopes.com': 0.82, 'factcheck.org': 0.85,
+                'nationalgeographic.com': 0.85, 'smithsonianmag.com': 0.82,
+                'npr.org': 0.85, 'pbs.org': 0.82,
                 // Tier 3: Good sources (0.55-0.74)
                 'reddit.com': 0.60, 'news.ycombinator.com': 0.65,
                 'medium.com': 0.55, 'substack.com': 0.58,
                 'investopedia.com': 0.75, 'britannica.com': 0.80,
                 'imdb.com': 0.72, 'rottentomatoes.com': 0.70,
                 'espn.com': 0.75, 'sports.yahoo.com': 0.72,
+                'goodreads.com': 0.68, 'allrecipes.com': 0.65,
+                'tripadvisor.com': 0.65, 'yelp.com': 0.55,
                 // Tier 4: Lower authority (0.3-0.54)
                 'quora.com': 0.45, 'answers.com': 0.35,
                 'pinterest.com': 0.30, 'tiktok.com': 0.30,
             };
 
             function getAuthorityScore(url) {
-                if (!url) return 0.5; // default
+                if (!url) return 0.5;
                 try {
                     const hostname = new URL(url).hostname.replace('www.', '');
-                    // Check exact domain
                     if (DOMAIN_AUTHORITY[hostname]) return DOMAIN_AUTHORITY[hostname];
-                    // Check TLD
                     const tld = hostname.split('.').pop();
                     if (DOMAIN_AUTHORITY[tld]) return DOMAIN_AUTHORITY[tld];
-                    // Check parent domain (e.g., news.bbc.co.uk → bbc.co.uk)
                     const parts = hostname.split('.');
                     for (let i = 1; i < parts.length; i++) {
                         const parent = parts.slice(i).join('.');
                         if (DOMAIN_AUTHORITY[parent]) return DOMAIN_AUTHORITY[parent];
                     }
-                    return 0.5; // Unknown domain default
+                    return 0.5;
                 } catch { return 0.5; }
             }
 
             // ─── 4. SOURCE QUALITY SCORING ───────────────────────────
             const SOURCE_QUALITY = {
-                'SearXNG': 0.85, 'Weather (Open-Meteo)': 0.90,
+                'SearXNG': 0.85, 'SearXNG (70+ engines)': 0.85,
+                'Weather (Open-Meteo)': 0.90,
                 'Stocks (Yahoo Finance)': 0.85, 'Crypto (CoinGecko)': 0.85,
                 'Currency (Frankfurter)': 0.85, 'Wikipedia': 0.80,
                 'Wikimedia REST': 0.80, 'Wikidata': 0.75,
@@ -4515,6 +4821,36 @@
                 'Books (Open Library)': 0.70, 'iTunes': 0.65,
                 'GitHub': 0.75, 'Wiktionary': 0.70, 'DateTime': 0.95,
             };
+
+            // ─── 4b. RECENCY SCORING ─────────────────────────────────
+            function computeRecency(result) {
+                // Try to extract a date from the snippet or metadata
+                const text = (result.snippet || '') + ' ' + (result.title || '');
+                const datePatterns = [
+                    /(\d{4}-\d{2}-\d{2})/,                                     // 2026-03-03
+                    /(\w+ \d{1,2},? \d{4})/,                                   // March 3, 2026
+                    /(\d{1,2}\/\d{1,2}\/\d{4})/,                               // 3/3/2026
+                    /(\d{1,2}\.\d{1,2}\.\d{4})/,                               // 3.3.2026
+                ];
+                let parsedDate = null;
+                for (const pattern of datePatterns) {
+                    const m = text.match(pattern);
+                    if (m) {
+                        const d = new Date(m[1]);
+                        if (!isNaN(d.getTime())) { parsedDate = d; break; }
+                    }
+                }
+                if (!parsedDate) return 0.5; // Unknown date → neutral
+
+                const now = new Date();
+                const hours = (now - parsedDate) / (1000 * 60 * 60);
+                if (hours < 0) return 0.9; // Future date (probably just published)
+                if (hours < 24) return 1.0;      // Last 24 hours
+                if (hours < 168) return 0.85;     // Last week
+                if (hours < 720) return 0.7;      // Last month
+                if (hours < 8760) return 0.5;     // Last year
+                return 0.3;                        // Older than a year
+            }
 
             // ─── 5. CONTENT-BASED DEDUPLICATION ──────────────────────
             function getBigrams(text) {
@@ -4541,7 +4877,6 @@
                     const content = (r.title || '') + ' ' + (r.snippet || '');
                     const bigrams = getBigrams(content);
 
-                    // Check similarity against already-kept results
                     let isDuplicate = false;
                     for (const existing of contentSigs) {
                         if (jaccardSimilarity(bigrams, existing) > 0.45) {
@@ -4562,15 +4897,41 @@
             const queryData = expandQuery(query);
             const queryTokens = queryData.original;
             const expandedTokens = queryData.expanded;
+            const queryIntent = detectQueryIntent(query);
             console.log(`[Search Pipeline] Query tokens: [${queryTokens.join(', ')}]`);
             console.log(`[Search Pipeline] Expanded tokens: [${expandedTokens.join(', ')}]`);
+            console.log(`[Search Pipeline] Detected intent: ${queryIntent}`);
 
-            // Score each result
-            results.forEach(r => {
-                // Relevance: how well does this result match the query?
-                const relevanceOriginal = computeRelevance(queryTokens, r);
-                const relevanceExpanded = computeRelevance(expandedTokens, r);
-                r._relevance = Math.max(relevanceOriginal, relevanceExpanded * 0.8); // Expanded matches worth 80%
+            // Intent-aware weight adjustments
+            const intentWeights = {
+                'definition': { relevance: 0.45, authority: 0.30, sourceQuality: 0.15, recency: 0.00, base: 0.10 },
+                'comparison': { relevance: 0.50, authority: 0.20, sourceQuality: 0.15, recency: 0.05, base: 0.10 },
+                'how-to': { relevance: 0.50, authority: 0.20, sourceQuality: 0.20, recency: 0.00, base: 0.10 },
+                'current-events': { relevance: 0.35, authority: 0.20, sourceQuality: 0.10, recency: 0.25, base: 0.10 },
+                'opinion': { relevance: 0.45, authority: 0.15, sourceQuality: 0.15, recency: 0.15, base: 0.10 },
+                'factual': { relevance: 0.50, authority: 0.30, sourceQuality: 0.10, recency: 0.00, base: 0.10 },
+                'general': { relevance: 0.50, authority: 0.25, sourceQuality: 0.15, recency: 0.00, base: 0.10 },
+            };
+            const weights = intentWeights[queryIntent] || intentWeights['general'];
+
+            // Intent-based source boosts
+            const intentSourceBoosts = {
+                'definition': { 'Wikipedia': 0.12, 'Wikimedia REST': 0.10, 'Wikidata': 0.08, 'Wiktionary': 0.15, 'DuckDuckGo': 0.08 },
+                'comparison': {},
+                'how-to': { 'StackOverflow': 0.12, 'StackExchange Multi': 0.08, 'GitHub': 0.08 },
+                'current-events': { 'SearXNG': 0.10, 'SearXNG (70+ engines)': 0.10, 'Reddit News': 0.08, 'Hacker News': 0.08, 'Reddit': 0.05 },
+                'opinion': { 'Reddit': 0.10, 'Hacker News': 0.08 },
+                'factual': { 'Wikipedia': 0.10, 'Wikimedia REST': 0.08, 'DuckDuckGo': 0.08 },
+                'general': {},
+            };
+            const sourceBoosts = intentSourceBoosts[queryIntent] || {};
+
+            // Score each result using BM25
+            operatorFiltered.forEach(r => {
+                // BM25 relevance: how well does this result match the query?
+                const relevanceOriginal = computeBM25(queryTokens, r, operatorFiltered);
+                const relevanceExpanded = computeBM25(expandedTokens, r, operatorFiltered);
+                r._relevance = Math.max(relevanceOriginal, relevanceExpanded * 0.8);
 
                 // Authority: how trustworthy is this source domain?
                 r._authority = getAuthorityScore(r.url);
@@ -4578,80 +4939,131 @@
                 // Source quality: how reliable is this API source?
                 r._sourceQuality = SOURCE_QUALITY[r._source] || 0.5;
 
-                // Combined score (weighted formula)
+                // Recency: how fresh is this content?
+                r._recency = computeRecency(r);
+
+                // Intent-based source boost
+                const srcBoost = sourceBoosts[r._source] || 0;
+
+                // Exact phrase boost from advanced operators
+                const phraseBoost = r._phraseBoost || 0;
+
+                // Combined score (intent-weighted formula)
                 r._score = (
-                    r._relevance * 0.50 +  // 50% relevance to query
-                    r._authority * 0.25 +  // 25% domain authority
-                    r._sourceQuality * 0.15 + // 15% source API quality
-                    0.10                       // 10% base (diversity cushion)
+                    r._relevance * weights.relevance +
+                    r._authority * weights.authority +
+                    r._sourceQuality * weights.sourceQuality +
+                    r._recency * weights.recency +
+                    weights.base +
+                    srcBoost +
+                    phraseBoost
                 );
             });
 
-            // ─── 7. FILTER LOW-RELEVANCE RESULTS ─────────────────────
-            // Remove results that don't match the query at all
-            const MIN_RELEVANCE = 0.03;
-            const relevant = results.filter(r => r._relevance >= MIN_RELEVANCE);
-            const filtered = results.length - relevant.length;
+            // ─── 7. FILTER LOW-QUALITY RESULTS ───────────────────────
+            const qualityFiltered = operatorFiltered.filter(r => {
+                // Minimum relevance threshold
+                if (r._relevance < 0.02) return false;
+                // Reject empty or missing titles
+                if (!r.title || r.title.trim().length < 3) return false;
+                // Reject thin content (snippets < 40 chars)
+                if (!r.snippet || r.snippet.trim().length < 40) return false;
+                // Reject results where title === snippet (low-quality SEO)
+                if (r.title.trim().toLowerCase() === r.snippet.trim().toLowerCase()) return false;
+                // Reject excessive special characters (spam)
+                const specialRatio = (r.snippet.match(/[^a-zA-Z0-9\s.,;:!?'"()\-]/g) || []).length / r.snippet.length;
+                if (specialRatio > 0.4) return false;
+                return true;
+            });
+            const filtered = operatorFiltered.length - qualityFiltered.length;
             if (filtered > 0) {
-                console.log(`[Search Pipeline] Filtered out ${filtered} irrelevant results (below ${MIN_RELEVANCE} relevance)`);
+                console.log(`[Search Pipeline] Quality-filtered ${filtered} results (thin content, missing titles, spam)`);
             }
 
-            // ─── 8. DEDUPLICATE ──────────────────────────────────────
-            // First: URL-based dedup
+            // ─── 8. DEDUPLICATE (enhanced canonical URL normalization) ──
+            const TRACKING_PARAMS = new Set(['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'ref', 'fbclid', 'gclid', 'source', 'mc_cid', 'mc_eid', 'zanpid', 'yclid', 'msclkid']);
+
+            function canonicalizeUrl(rawUrl) {
+                if (!rawUrl) return '';
+                try {
+                    const u = new URL(rawUrl);
+                    // Normalize protocol
+                    const protocol = 'https:';
+                    // Strip www
+                    const host = u.hostname.toLowerCase().replace(/^www\./, '');
+                    // Strip trailing slashes
+                    const path = u.pathname.replace(/\/+$/, '') || '/';
+                    // Strip tracking params
+                    const params = new URLSearchParams(u.search);
+                    for (const key of [...params.keys()]) {
+                        if (TRACKING_PARAMS.has(key.toLowerCase())) params.delete(key);
+                    }
+                    const search = params.toString() ? '?' + params.toString() : '';
+                    return `${protocol}//${host}${path}${search}`.toLowerCase();
+                } catch {
+                    return rawUrl.toLowerCase().replace(/\/+$/, '').replace(/^http:/, 'https:');
+                }
+            }
+
             const seenUrls = new Set();
             const urlDeduped = [];
-            for (const r of relevant) {
-                let key = '';
-                try {
-                    const u = new URL(r.url || '');
-                    key = `${u.hostname}${u.pathname}`.toLowerCase().replace(/\/+$/, '');
-                } catch {
-                    key = (r.url || r.title || '').toLowerCase().replace(/\/+$/, '');
-                }
+            for (const r of qualityFiltered) {
+                const key = canonicalizeUrl(r.url);
                 if (!seenUrls.has(key)) {
                     seenUrls.add(key);
                     urlDeduped.push(r);
                 }
             }
-            // Second: Content-based dedup (catches same content from different URLs)
+            // Second: Content-based dedup
             const deduped = contentDedup(urlDeduped);
 
             // ─── 9. RANK BY COMBINED SCORE ───────────────────────────
             deduped.sort((a, b) => b._score - a._score);
 
-            // ─── 10. DIVERSITY PASS ──────────────────────────────────
-            // After ranking, ensure top results aren't all from one source.
-            // If the top 5 are all from one source, interleave others.
+            // ─── 10. DIVERSITY PASS (domain-level) ───────────────────
+            // Enforce max 2 results from the same DOMAIN in the top 10
             const ranked = [];
+            const domainCountInTop = {};
             const sourceCountInTop = {};
+            const MAX_PER_DOMAIN_IN_TOP_10 = 2;
             const MAX_PER_SOURCE_IN_TOP_10 = 3;
 
-            // First pass: pick top results with diversity constraint
+            function getDomain(url) {
+                try { return new URL(url).hostname.replace('www.', '').toLowerCase(); }
+                catch { return ''; }
+            }
+
             const pending = [...deduped];
             while (ranked.length < 25 && pending.length > 0) {
                 let picked = false;
                 for (let i = 0; i < pending.length; i++) {
+                    const domain = getDomain(pending[i].url);
                     const src = pending[i]._source || 'Unknown';
-                    const inTop = sourceCountInTop[src] || 0;
-                    // Allow up to MAX_PER_SOURCE for top 10, then relax
-                    if (ranked.length < 10 && inTop >= MAX_PER_SOURCE_IN_TOP_10) continue;
-                    sourceCountInTop[src] = inTop + 1;
+                    const domainCount = domainCountInTop[domain] || 0;
+                    const srcCount = sourceCountInTop[src] || 0;
+
+                    // In top 10, enforce both domain and source diversity
+                    if (ranked.length < 10) {
+                        if (domain && domainCount >= MAX_PER_DOMAIN_IN_TOP_10) continue;
+                        if (srcCount >= MAX_PER_SOURCE_IN_TOP_10) continue;
+                    }
+
+                    if (domain) domainCountInTop[domain] = domainCount + 1;
+                    sourceCountInTop[src] = srcCount + 1;
                     ranked.push(pending[i]);
                     pending.splice(i, 1);
                     picked = true;
                     break;
                 }
-                // If no diverse pick found, just take the highest scored
                 if (!picked && pending.length > 0) {
-                    const r = pending.shift();
-                    ranked.push(r);
+                    ranked.push(pending.shift());
                 }
             }
 
             // ─── 11. LOG FINAL RANKINGS ──────────────────────────────
-            console.log(`[Search Pipeline] Final: ${ranked.length} results from ${new Set(ranked.map(r => r._source)).size} sources`);
+            console.log(`[Search Pipeline] Intent: ${queryIntent} | Final: ${ranked.length} results from ${new Set(ranked.map(r => r._source)).size} sources, ${new Set(ranked.map(r => getDomain(r.url))).size} domains`);
             ranked.slice(0, 10).forEach((r, i) => {
-                console.log(`  [${i + 1}] score=${r._score.toFixed(3)} rel=${r._relevance.toFixed(3)} auth=${r._authority.toFixed(2)} src=${r._source} | ${(r.title || '').substring(0, 60)}`);
+                console.log(`  [${i + 1}] score=${r._score.toFixed(3)} bm25=${r._relevance.toFixed(3)} auth=${r._authority.toFixed(2)} rcncy=${r._recency.toFixed(2)} src=${r._source} dom=${getDomain(r.url)} | ${(r.title || '').substring(0, 60)}`);
             });
 
             return ranked.slice(0, 25);
@@ -4855,6 +5267,164 @@
             renderAttachments();
             updateSendButtonState();
         }
+
+        // ═══ AUTOCOMPLETE SYSTEM ════════════════════════════════════
+        let _acDebounceTimer = null;
+        let _acActiveIndex = -1;
+        let _acItems = [];
+
+        // Save queries to recent history
+        function saveRecentQuery(q) {
+            if (!q || q.trim().length < 3) return;
+            try {
+                let recent = JSON.parse(localStorage.getItem('gpt_recent_queries') || '[]');
+                recent = recent.filter(r => r.toLowerCase() !== q.toLowerCase());
+                recent.unshift(q.trim());
+                if (recent.length > 20) recent = recent.slice(0, 20);
+                localStorage.setItem('gpt_recent_queries', JSON.stringify(recent));
+            } catch { /* ignore */ }
+        }
+
+        function getRecentQueries(prefix) {
+            try {
+                const recent = JSON.parse(localStorage.getItem('gpt_recent_queries') || '[]');
+                if (!prefix) return recent.slice(0, 3);
+                return recent.filter(q => q.toLowerCase().startsWith(prefix.toLowerCase())).slice(0, 3);
+            } catch { return []; }
+        }
+
+        async function fetchDDGSuggestions(q) {
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 2000);
+                const res = await fetch(`https://duckduckgo.com/ac/?q=${encodeURIComponent(q)}&type=list`, { signal: controller.signal });
+                if (res.ok) {
+                    const data = await res.json();
+                    // DDG returns [query, [suggestions]]
+                    return Array.isArray(data[1]) ? data[1].slice(0, 5) : [];
+                }
+            } catch { /* DDG suggestions failed */ }
+            return [];
+        }
+
+        function handleAutocompleteInput(value) {
+            clearTimeout(_acDebounceTimer);
+            const dropdown = document.getElementById('autocomplete-dropdown');
+            if (!dropdown) return;
+
+            const text = value.trim();
+            if (text.length < 2) {
+                dropdown.style.display = 'none';
+                _acItems = [];
+                _acActiveIndex = -1;
+                return;
+            }
+
+            _acDebounceTimer = setTimeout(async () => {
+                const items = [];
+
+                // Recent queries
+                const recent = getRecentQueries(text);
+                recent.forEach(q => {
+                    items.push({ text: q, type: 'recent', icon: 'fa-solid fa-clock-rotate-left' });
+                });
+
+                // DDG suggestions
+                const suggestions = await fetchDDGSuggestions(text);
+                suggestions.forEach(s => {
+                    if (!items.some(i => i.text.toLowerCase() === s.toLowerCase())) {
+                        items.push({ text: s, type: 'suggestion', icon: 'fa-solid fa-magnifying-glass' });
+                    }
+                });
+
+                // Limit to 6
+                _acItems = items.slice(0, 6);
+                _acActiveIndex = -1;
+                renderAutocomplete(dropdown, _acItems);
+            }, 300); // 300ms debounce
+        }
+
+        function renderAutocomplete(dropdown, items) {
+            if (items.length === 0) {
+                dropdown.style.display = 'none';
+                return;
+            }
+            dropdown.innerHTML = items.map((item, idx) => `
+                <div class="autocomplete-item${idx === _acActiveIndex ? ' active' : ''}"
+                     data-index="${idx}" onclick="selectAutocomplete(${idx})">
+                    <i class="${item.icon}"></i>
+                    <span class="ac-text">${escapeHtml(item.text)}</span>
+                    <span class="ac-type">${item.type}</span>
+                </div>
+            `).join('');
+            dropdown.style.display = 'block';
+        }
+
+        function escapeHtml(text) {
+            const d = document.createElement('div');
+            d.textContent = text;
+            return d.innerHTML;
+        }
+
+        function selectAutocomplete(index) {
+            const item = _acItems[index];
+            if (!item) return;
+            const input = document.getElementById('message-input');
+            if (input) {
+                input.value = item.text;
+                input.style.height = 'auto';
+                input.style.height = (input.scrollHeight) + 'px';
+                input.focus();
+                updateSendButtonState();
+            }
+            const dropdown = document.getElementById('autocomplete-dropdown');
+            if (dropdown) dropdown.style.display = 'none';
+            _acItems = [];
+            _acActiveIndex = -1;
+        }
+
+        // Returns true if the keydown was handled by autocomplete
+        function handleAutocompleteKeydown(event, textarea) {
+            const dropdown = document.getElementById('autocomplete-dropdown');
+            if (!dropdown || dropdown.style.display === 'none' || _acItems.length === 0) return false;
+
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                _acActiveIndex = Math.min(_acActiveIndex + 1, _acItems.length - 1);
+                renderAutocomplete(dropdown, _acItems);
+                return true;
+            }
+            if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                _acActiveIndex = Math.max(_acActiveIndex - 1, -1);
+                renderAutocomplete(dropdown, _acItems);
+                return true;
+            }
+            if (event.key === 'Enter' && _acActiveIndex >= 0) {
+                event.preventDefault();
+                selectAutocomplete(_acActiveIndex);
+                return true;
+            }
+            if (event.key === 'Escape') {
+                dropdown.style.display = 'none';
+                _acItems = [];
+                _acActiveIndex = -1;
+                return true;
+            }
+            return false;
+        }
+
+        // Close autocomplete when clicking outside
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('autocomplete-dropdown');
+            if (dropdown && !e.target.closest('#autocomplete-dropdown') && !e.target.closest('#message-input')) {
+                dropdown.style.display = 'none';
+                _acItems = [];
+                _acActiveIndex = -1;
+            }
+        });
+
+        // ═══ END AUTOCOMPLETE ═══════════════════════════════════════
 
         function getFileTypeInfo(filename) {
             const ext = filename.split('.').pop().toLowerCase();
@@ -5214,6 +5784,11 @@
                     }
                 }
 
+                // Save to recent queries and close autocomplete
+                saveRecentQuery(text);
+                const _acDrop = document.getElementById('autocomplete-dropdown');
+                if (_acDrop) _acDrop.style.display = 'none';
+
                 // Reset input
                 messageInput.value = '';
                 messageInput.style.height = 'auto';
@@ -5353,19 +5928,36 @@
                         if (loadingEl) {
                             searchIndicator = document.createElement('div');
                             searchIndicator.className = 'web-search-indicator';
-                            searchIndicator.innerHTML = '<i class="fa-solid fa-spinner"></i> Searching 20+ sources across 70+ engines...';
+                            searchIndicator.innerHTML = '<i class="fa-solid fa-spinner"></i> <span>Researching…</span>';
                             loadingEl.parentNode.insertBefore(searchIndicator, loadingEl);
+
+                            // Phase 2: after 2s switch to "Reading sources…"
+                            setTimeout(() => {
+                                if (searchIndicator && searchIndicator.parentNode) {
+                                    searchIndicator.classList.add('phase-reading');
+                                    searchIndicator.querySelector('span').textContent = 'Reading sources…';
+                                }
+                            }, 2000);
+                            // Phase 3: after 5s switch to "Synthesizing answer…"
+                            setTimeout(() => {
+                                if (searchIndicator && searchIndicator.parentNode) {
+                                    searchIndicator.classList.remove('phase-reading');
+                                    searchIndicator.classList.add('phase-synthesizing');
+                                    searchIndicator.querySelector('span').textContent = 'Synthesizing answer…';
+                                }
+                            }, 5000);
                         }
                         webSearchResults = await performWebSearch(searchQuery);
                     } else {
                         console.log('[Search] Skipped search — query too vague or trivial');
                     }
-                    // Update indicator to show how many sources returned
+                    // Update indicator to show final status
                     if (searchIndicator && webSearchResults) {
                         const count = webSearchResults.length;
                         const srcCount = new Set(webSearchResults.map(r => r._source).filter(Boolean)).size;
                         const domainCount = new Set(webSearchResults.map(r => { try { return new URL(r.url).hostname; } catch { return ''; } }).filter(Boolean)).size;
-                        searchIndicator.innerHTML = `<i class="fa-solid fa-check" style="animation:none"></i> Found ${count} results from ${srcCount} APIs across ${domainCount} websites`;
+                        searchIndicator.className = 'web-search-indicator phase-done';
+                        searchIndicator.innerHTML = `<i class="fa-solid fa-check"></i> <span>Found ${count} results from ${srcCount} APIs across ${domainCount} websites</span>`;
                         setTimeout(() => { if (searchIndicator.parentNode) searchIndicator.remove(); }, 3000);
                     }
                 } catch (err) { console.warn('Web search failed:', err); }
@@ -5406,11 +5998,9 @@
             const katexInstruction = "CRITICAL RULE: DO NOT use, mention, or create any mathematics, equations, or formulas unless the user's prompt is explicitly about math or science. Never use math for analogies or casual conversation. ONLY if the user's prompt requires a mathematical answer, format your equations strictly using KaTeX markdown (`$$` for block, `\\(` and `\\)` for inline) without announcing it.";
             sysContent += (sysContent ? '\n\n' : '') + katexInstruction;
 
-            // Inject web search results with strong usage instructions
+            // Inject web search results with synthesized answer instructions
             if (webSearchResults && webSearchResults.length > 0) {
-                // Collect unique source names from the results
                 const uniqueSources = [...new Set(webSearchResults.map(r => r._source).filter(Boolean))];
-                // Collect unique domains from results (for SearXNG especially)
                 const uniqueDomains = [...new Set(webSearchResults.map(r => {
                     try { return new URL(r.url).hostname.replace('www.', ''); } catch { return ''; }
                 }).filter(Boolean))];
@@ -5419,17 +6009,22 @@
                 webSearchResults.forEach((r, i) => {
                     sc += `━━━ Result [${i + 1}]${r._source ? ' [' + r._source + ']' : ''} ━━━\nTitle: ${r.title}\n${r.url ? 'Source URL: ' + r.url + '\n' : ''}Data: ${r.snippet}\n\n`;
                 });
-                sc += `═══ MANDATORY INSTRUCTIONS ═══
-YOU HAVE REAL-TIME DATA ACCESS. The ${webSearchResults.length} results above are LIVE data retrieved just now from ${uniqueDomains.length} different websites via ${uniqueSources.length} search APIs. You MUST:
-1. USE this data directly in your response — do NOT say "I don't have access to real-time data" or "I cannot browse the internet." You literally just searched the web across 70+ search engines.
-2. Present factual data (weather, stocks, prices, scores) with specific numbers from the results above.
-3. For weather queries: report the EXACT temperature, conditions, humidity, wind from the data above.
-4. For stock/crypto queries: report the EXACT price, change %, and market data from the data above.
-5. Cite sources as markdown links like [Source Title](url) at the end of relevant statements.
-6. Synthesize information from MULTIPLE results and MULTIPLE sources to give a comprehensive answer.
-7. If some results are irrelevant, skip them — but ALWAYS use the relevant ones.
-8. NEVER claim you cannot access current information — the search results above ARE current information.
-9. Prefer diverse sources: use data from Reddit, news sites, academic papers, official pages — NOT just Wikipedia.`;
+                sc += `═══ SYNTHESIZED ANSWER ENGINE INSTRUCTIONS ═══
+YOU ARE AN AI ANSWER ENGINE with real-time web search. The ${webSearchResults.length} results above are LIVE data from ${uniqueDomains.length} websites via ${uniqueSources.length} search APIs.
+
+CORE BEHAVIOR:
+1. SYNTHESIZE a comprehensive, well-structured answer by combining insights from MULTIPLE sources — do NOT just summarize one result.
+2. USE this data directly — NEVER say "I don't have access to real-time data" or "I cannot browse the internet."
+3. CITE sources INLINE as markdown links [Source Title](url) within your text, right after the claim they support.
+4. For key supporting evidence, include brief blockquote excerpts:
+   > "relevant quote from a source" — [Source Name](url)
+5. For factual data (weather, stocks, prices, scores): use EXACT numbers from the results.
+6. Structure your answer with clear headings when the topic has multiple facets.
+7. When sources disagree, present both perspectives with their respective citations.
+8. Prefer authoritative and diverse sources — draw from news, academic, official, and community sources, NOT just Wikipedia.
+9. Skip irrelevant results but ALWAYS incorporate the relevant ones.
+10. NEVER claim you lack current information — the search results ARE current.
+11. End with a brief "Sources" section listing the 3-5 most important references used.`;
                 sysContent += '\n\n' + sc;
             }
             // Always inject current date/time context when search is active
