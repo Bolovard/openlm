@@ -6007,7 +6007,7 @@
 
                 let sc = `═══ LIVE WEB SEARCH RESULTS ═══\nRetrieved: ${new Date().toLocaleString()}\nAPIs queried: SearXNG (aggregates Google, Bing, Yahoo, Brave, Mojeek, Startpage, Qwant & 60+ engines), Reddit, DuckDuckGo, Wikipedia, Wikimedia, Wikidata, Wiktionary, Hacker News, StackExchange (multi-site), arXiv, CrossRef, Open-Meteo, CoinGecko, Frankfurter, Open Library, iTunes, GitHub, Yahoo Finance\nSources that returned data: ${uniqueSources.join(', ')}\nUnique website domains in results: ${uniqueDomains.slice(0, 15).join(', ')}${uniqueDomains.length > 15 ? ` (+${uniqueDomains.length - 15} more)` : ''}\nTotal results: ${webSearchResults.length}\n\n`;
                 webSearchResults.forEach((r, i) => {
-                    sc += `━━━ Result [${i + 1}]${r._source ? ' [' + r._source + ']' : ''} ━━━\nTitle: ${r.title}\n${r.url ? 'Source URL: ' + r.url + '\n' : ''}Data: ${r.snippet}\n\n`;
+                    sc += `━━━ Result [${i + 1}] ━━━\nTitle: ${r.title}\n${r.url ? 'Source URL: ' + r.url + '\n' : ''}Data: ${r.snippet}\n\n`;
                 });
                 sc += `═══ SYNTHESIZED ANSWER ENGINE INSTRUCTIONS ═══
 YOU ARE AN AI ANSWER ENGINE with real-time web search. The ${webSearchResults.length} results above are LIVE data from ${uniqueDomains.length} websites via ${uniqueSources.length} search APIs.
@@ -6015,16 +6015,15 @@ YOU ARE AN AI ANSWER ENGINE with real-time web search. The ${webSearchResults.le
 CORE BEHAVIOR:
 1. SYNTHESIZE a comprehensive, well-structured answer by combining insights from MULTIPLE sources — do NOT just summarize one result.
 2. USE this data directly — NEVER say "I don't have access to real-time data" or "I cannot browse the internet."
-3. CITE sources INLINE as markdown links [Source Title](url) within your text, right after the claim they support.
-4. For key supporting evidence, include brief blockquote excerpts:
-   > "relevant quote from a source" — [Source Name](url)
+3. CITE sources ONLY as markdown links: [Page Title](url) — embedded naturally in your text right after the claim they support.
+4. NEVER use "[Source: Wikipedia]" or "[Source: X]" or "(Source: X)" or any similar tag format. The ONLY acceptable citation format is a proper markdown link like [Title](url).
 5. For factual data (weather, stocks, prices, scores): use EXACT numbers from the results.
 6. Structure your answer with clear headings when the topic has multiple facets.
 7. When sources disagree, present both perspectives with their respective citations.
 8. Prefer authoritative and diverse sources — draw from news, academic, official, and community sources, NOT just Wikipedia.
 9. Skip irrelevant results but ALWAYS incorporate the relevant ones.
 10. NEVER claim you lack current information — the search results ARE current.
-11. End with a brief "Sources" section listing the 3-5 most important references used.`;
+11. End with a brief "Sources" section listing the 3-5 most important references as markdown links.`;
                 sysContent += '\n\n' + sc;
             }
             // Always inject current date/time context when search is active
