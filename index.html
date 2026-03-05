@@ -3496,9 +3496,6 @@
         // ── Yahoo Finance v8 chart API (CORS-enabled) ────────────────────
         async function getStockData(queryText) {
             const results = [];
-            // Extract potential ticker symbols or company names
-            const tickerMatch = queryText.match(/\b([A-Z]{1,5})\b/g);
-            // Also try to extract from queries like "price of Apple" or "Tesla stock"
             const companyMap = {
                 'apple': 'AAPL', 'microsoft': 'MSFT', 'google': 'GOOGL', 'alphabet': 'GOOGL',
                 'amazon': 'AMZN', 'tesla': 'TSLA', 'nvidia': 'NVDA', 'meta': 'META',
@@ -3515,59 +3512,107 @@
             };
 
             const symbols = new Set();
-            // Check company names
             const lowerQuery = queryText.toLowerCase();
             for (const [name, sym] of Object.entries(companyMap)) {
                 if (lowerQuery.includes(name)) symbols.add(sym);
             }
-            // Check direct ticker mentions (only if they look like real tickers - 1-5 uppercase letters)
+            const tickerMatch = queryText.match(/\b([A-Z]{1,5})\b/g);
             if (tickerMatch) {
-                const commonWords = new Set(['THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR', 'OUT', 'HAS', 'HIS', 'HOW', 'ITS', 'LET', 'MAY', 'NEW', 'NOW', 'OLD', 'SEE', 'WAY', 'WHO', 'BOY', 'DID', 'GET', 'HIM', 'SAY', 'SHE', 'TOO', 'USE', 'DAY', 'HAD', 'HOT', 'OIL', 'SIT', 'TOP', 'RED', 'IS', 'IN', 'IT', 'OF', 'ON', 'IF', 'AT', 'OR', 'AN', 'AS', 'SO', 'UP', 'MY', 'BY', 'NO', 'DO', 'GO', 'TO', 'WE', 'HE', 'ME', 'AM', 'US', 'BE', 'WHAT', 'STOCK', 'PRICE']);
+                const commonWords = new Set(['THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR', 'OUT', 'HAS', 'HIS', 'HOW', 'ITS', 'LET', 'MAY', 'NEW', 'NOW', 'OLD', 'SEE', 'WAY', 'WHO', 'BOY', 'DID', 'GET', 'HIM', 'SAY', 'SHE', 'TOO', 'USE', 'DAY', 'HAD', 'HOT', 'OIL', 'SIT', 'TOP', 'RED', 'IS', 'IN', 'IT', 'OF', 'ON', 'IF', 'AT', 'OR', 'AN', 'AS', 'SO', 'UP', 'MY', 'BY', 'NO', 'DO', 'GO', 'TO', 'WE', 'HE', 'ME', 'AM', 'US', 'BE', 'WHAT', 'STOCK', 'PRICE', 'CURRENT', 'TODAY', 'MARGIN']);
                 for (const t of tickerMatch) {
                     if (!commonWords.has(t) && t.length >= 2) symbols.add(t);
                 }
             }
 
-            // Fetch data for each symbol (limit to 3)
             const symbolArr = [...symbols].slice(0, 3);
-            const fetches = symbolArr.map(async (symbol) => {
+
+            // Strategy 1: Yahoo Finance via CORS proxy
+            const yahooFetches = symbolArr.map(async (symbol) => {
                 try {
-                    const controller = new AbortController();
-                    setTimeout(() => controller.abort(), 5000);
-                    const res = await fetch(
-                        `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`,
-                        { signal: controller.signal, headers: { 'Accept': 'application/json' } }
-                    );
-                    if (!res.ok) return null;
-                    const data = await res.json();
+                    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
+                    // Try direct first, then CORS proxy
+                    let data = null;
+                    for (const attempt of [
+                        () => fetch(url, { signal: AbortSignal.timeout(4000) }),
+                        () => fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(5000) }),
+                        () => fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(5000) }),
+                    ]) {
+                        try {
+                            const res = await attempt();
+                            if (res.ok) {
+                                data = await res.json();
+                                break;
+                            }
+                        } catch { continue; }
+                    }
+                    if (!data) return null;
                     const meta = data?.chart?.result?.[0]?.meta;
-                    if (!meta) return null;
+                    if (!meta || !meta.regularMarketPrice) return null;
                     const price = meta.regularMarketPrice;
                     const prevClose = meta.chartPreviousClose || meta.previousClose;
                     const change = prevClose ? (price - prevClose) : 0;
                     const changePct = prevClose ? ((change / prevClose) * 100) : 0;
                     const arrow = change >= 0 ? '📈' : '📉';
                     const sign = change >= 0 ? '+' : '';
+                    const marketTime = meta.regularMarketTime ? new Date(meta.regularMarketTime * 1000).toLocaleString() : 'N/A';
+                    console.log(`[Stocks] Yahoo Finance: ${symbol} = $${price.toFixed(2)}`);
                     return {
-                        title: `${arrow} ${meta.shortName || meta.symbol} (${meta.symbol}) — $${price.toFixed(2)}`,
+                        title: `${arrow} ${meta.shortName || symbol} (${meta.symbol || symbol}) — LIVE PRICE: $${price.toFixed(2)}`,
                         url: `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}`,
-                        snippet: `Price: $${price.toFixed(2)} | Change: ${sign}${change.toFixed(2)} (${sign}${changePct.toFixed(2)}%) | Currency: ${meta.currency || 'USD'} | Exchange: ${meta.exchangeName || 'N/A'} | Market time: ${new Date((meta.regularMarketTime || 0) * 1000).toLocaleString()}`
+                        snippet: `LIVE STOCK DATA as of ${marketTime}: Price: $${price.toFixed(2)} | Day change: ${sign}$${change.toFixed(2)} (${sign}${changePct.toFixed(2)}%) | Previous close: $${(prevClose || 0).toFixed(2)} | Currency: ${meta.currency || 'USD'} | Exchange: ${meta.exchangeName || 'N/A'}`,
+                        _source: 'Stocks (Yahoo Finance)',
+                        _domain: 'finance.yahoo.com'
                     };
                 } catch { return null; }
             });
-            const stockResults = await Promise.all(fetches);
-            stockResults.forEach(r => { if (r) results.push(r); });
 
-            // If asking about general market / indices and no specific stock found
+            // Strategy 2: Scrape Google Finance via CORS proxy as backup
+            const googleFinanceFetches = symbolArr.map(async (symbol) => {
+                try {
+                    const html = await fetchPageViaProxy(`https://www.google.com/finance/quote/${symbol}:NASDAQ`, 5000);
+                    if (!html) {
+                        // Try NYSE
+                        const html2 = await fetchPageViaProxy(`https://www.google.com/finance/quote/${symbol}:NYSE`, 5000);
+                        if (!html2) return null;
+                        return parseGoogleFinanceHTML(html2, symbol);
+                    }
+                    return parseGoogleFinanceHTML(html, symbol);
+                } catch { return null; }
+            });
+
+            // Wait for all stock fetches
+            const [yahooResults, googleResults] = await Promise.all([
+                Promise.all(yahooFetches),
+                Promise.all(googleFinanceFetches)
+            ]);
+
+            // Prefer Yahoo (structured data), fall back to Google
+            const successfulYahoo = yahooResults.filter(Boolean);
+            const successfulGoogle = googleResults.filter(Boolean);
+
+            if (successfulYahoo.length > 0) {
+                successfulYahoo.forEach(r => results.push(r));
+                console.log(`[Stocks] Got ${successfulYahoo.length} results from Yahoo Finance`);
+            } else if (successfulGoogle.length > 0) {
+                successfulGoogle.forEach(r => results.push(r));
+                console.log(`[Stocks] Yahoo failed, got ${successfulGoogle.length} results from Google Finance`);
+            } else {
+                console.log(`[Stocks] Both Yahoo and Google Finance failed for: ${symbolArr.join(', ')}`);
+            }
+
+            // Market indices fallback
             if (results.length === 0 && /\b(market|dow|s&p|nasdaq|index|indices)\b/i.test(queryText)) {
                 const indices = ['^GSPC', '^DJI', '^IXIC'];
                 const indexNames = { '^GSPC': 'S&P 500', '^DJI': 'Dow Jones', '^IXIC': 'NASDAQ' };
                 const indexFetches = indices.map(async (sym) => {
                     try {
-                        const controller = new AbortController();
-                        setTimeout(() => controller.abort(), 5000);
-                        const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d`, { signal: controller.signal });
-                        if (!res.ok) return null;
+                        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d`;
+                        let res;
+                        try { res = await fetch(url, { signal: AbortSignal.timeout(4000) }); } catch { }
+                        if (!res?.ok) {
+                            try { res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(5000) }); } catch { return null; }
+                        }
+                        if (!res?.ok) return null;
                         const data = await res.json();
                         const meta = data?.chart?.result?.[0]?.meta;
                         if (!meta) return null;
@@ -3579,7 +3624,9 @@
                         return {
                             title: `${indexNames[sym] || sym}: ${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
                             url: `https://finance.yahoo.com/quote/${encodeURIComponent(sym)}`,
-                            snippet: `${sign}${change.toFixed(2)} (${sign}${changePct.toFixed(2)}%)`
+                            snippet: `LIVE INDEX DATA: ${sign}${change.toFixed(2)} (${sign}${changePct.toFixed(2)}%)`,
+                            _source: 'Stocks (Yahoo Finance)',
+                            _domain: 'finance.yahoo.com'
                         };
                     } catch { return null; }
                 });
@@ -3587,6 +3634,36 @@
                 indexResults.forEach(r => { if (r) results.push(r); });
             }
             return results;
+        }
+
+        // Helper: parse Google Finance HTML for stock data
+        function parseGoogleFinanceHTML(html, symbol) {
+            if (!html) return null;
+            try {
+                // Google Finance shows price in a data attribute or specific div
+                // Try to extract price from the page content
+                const priceMatch = html.match(/data-last-price="([^"]+)"/i)
+                    || html.match(/class="YMlKec fxKbKc"[^>]*>([^<]+)/i)
+                    || html.match(/class="[^"]*price[^"]*"[^>]*>\$?([\d,.]+)/i);
+
+                const nameMatch = html.match(/<div[^>]*class="[^"]*zzDege[^"]*"[^>]*>([^<]+)/i)
+                    || html.match(/<title>([^<]+)/i);
+
+                if (priceMatch) {
+                    const price = parseFloat(priceMatch[1].replace(/[,$]/g, ''));
+                    if (isNaN(price) || price <= 0) return null;
+                    const name = nameMatch ? nameMatch[1].trim() : symbol;
+                    console.log(`[Stocks] Google Finance: ${symbol} = $${price.toFixed(2)}`);
+                    return {
+                        title: `📊 ${name} (${symbol}) — LIVE PRICE: $${price.toFixed(2)}`,
+                        url: `https://www.google.com/finance/quote/${symbol}:NASDAQ`,
+                        snippet: `LIVE STOCK DATA from Google Finance: Current price: $${price.toFixed(2)} | Ticker: ${symbol}`,
+                        _source: 'Stocks (Google Finance)',
+                        _domain: 'google.com'
+                    };
+                }
+            } catch { }
+            return null;
         }
 
         // ── Cryptocurrency via CoinGecko public API ──────────────────────
@@ -3960,15 +4037,163 @@
         }
 
         // ══════════════════════════════════════════════════════════════════
+        // ═══ LIVE WEB PAGE READING (ChatGPT-LEVEL FEATURE) ═══════════════
+        // ══════════════════════════════════════════════════════════════════
+        // This is the KEY difference vs basic search: we actually VISIT web
+        // pages and read their full content, just like ChatGPT's "browsing".
+        // Uses multiple CORS proxies to bypass same-origin restrictions.
+
+        const CORS_PROXIES = [
+            url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+            url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+            url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+            url => `https://thingproxy.freeboard.io/fetch/${url}`,
+        ];
+
+        // Fetch raw HTML from a URL via CORS proxy
+        async function fetchPageViaProxy(url, timeoutMs = 6000) {
+            // Skip non-http URLs, PDFs, images, etc.
+            if (!/^https?:\/\//i.test(url)) return null;
+            if (/\.(pdf|jpg|jpeg|png|gif|svg|mp4|mp3|zip|tar|gz|exe|dmg)(\?|$)/i.test(url)) return null;
+
+            for (const makeProxy of CORS_PROXIES) {
+                try {
+                    const controller = new AbortController();
+                    const timer = setTimeout(() => controller.abort(), timeoutMs);
+                    const res = await fetch(makeProxy(url), {
+                        signal: controller.signal,
+                        headers: { 'Accept': 'text/html,application/xhtml+xml,text/plain' }
+                    });
+                    clearTimeout(timer);
+                    if (!res.ok) continue;
+                    const contentType = res.headers.get('content-type') || '';
+                    if (contentType.includes('application/pdf') || contentType.includes('image/')) continue;
+                    const html = await res.text();
+                    if (html && html.length > 200) return html;
+                } catch { continue; }
+            }
+            return null;
+        }
+
+        // Extract clean, readable text from HTML
+        function extractTextFromHTML(html, maxLength = 2000) {
+            if (!html) return '';
+            // Remove script, style, nav, header, footer, aside tags and their content
+            let clean = html
+                .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+                .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+                .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
+                .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
+                .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
+                .replace(/<aside[^>]*>[\s\S]*?<\/aside>/gi, '')
+                .replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, '')
+                .replace(/<!--[\s\S]*?-->/g, '');
+
+                    // Extract text from article/main content areas first (prioritize)
+                    let mainContent = '';
+            const articleMatch = clean.match(/<article[^>]*>([\s\S]*?)<\/article>/i)
+                || clean.match(/<main[^>]*>([\s\S]*?)<\/main>/i)
+                || clean.match(/<div[^>]*(?:class|id)="[^"]*(?:content|article|post|entry|body|text)[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
+
+            if (articleMatch) {
+                mainContent = articleMatch[1] || articleMatch[0];
+            } else {
+                // Fall back to body content
+                const bodyMatch = clean.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+                mainContent = bodyMatch ? bodyMatch[1] : clean;
+            }
+
+            // Strip remaining HTML tags
+            let text = mainContent
+                .replace(/<br\s*\/?>/gi, '\n')
+                .replace(/<\/p>/gi, '\n\n')
+                .replace(/<\/h[1-6]>/gi, '\n\n')
+                .replace(/<\/li>/gi, '\n')
+                .replace(/<\/div>/gi, '\n')
+                .replace(/<[^>]+>/g, ' ')
+                // Decode common HTML entities
+                .replace(/&amp;/g, '&')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '"')
+                .replace(/&#39;/g, "'")
+                .replace(/&nbsp;/g, ' ')
+                .replace(/&#\d+;/g, '')
+                .replace(/&[a-z]+;/gi, ' ');
+
+            // Clean up whitespace
+            text = text
+                .replace(/[ \t]+/g, ' ')
+                .replace(/\n\s*\n\s*\n/g, '\n\n')
+                .replace(/^\s+/gm, '')
+                .trim();
+
+            // Take meaningful content (skip very short results)
+            if (text.length < 100) return '';
+            return text.slice(0, maxLength);
+        }
+
+        // Read full page content for top search results — THIS IS THE CHATGPT-LEVEL FEATURE
+        async function enrichResultsWithPageContent(results, maxPages = 6) {
+            if (!results || results.length === 0) return results;
+
+            // Pick top results with real URLs to read
+            const toRead = results
+                .filter(r => r.url && /^https?:\/\//i.test(r.url))
+                .filter(r => {
+                    // Skip Wikipedia (we already have full content from API)
+                    try { const h = new URL(r.url).hostname; return !h.includes('wikipedia.org'); } catch { return true; }
+                })
+                .slice(0, maxPages);
+
+            if (toRead.length === 0) return results;
+
+            console.log(`[Page Reader] Reading ${toRead.length} pages for full content...`);
+
+            const pagePromises = toRead.map(async (result) => {
+                try {
+                    const html = await fetchPageViaProxy(result.url, 5000);
+                    if (!html) return;
+                    const text = extractTextFromHTML(html, 1500);
+                    if (text && text.length > result.snippet.length) {
+                        const oldLen = result.snippet.length;
+                        result.snippet = text;
+                        result._pageRead = true;
+                        let domain = '';
+                        try { domain = new URL(result.url).hostname; } catch { }
+                        console.log(`[Page Reader] ✓ ${domain}: ${oldLen} chars → ${text.length} chars`);
+                    }
+                } catch (e) {
+                    console.log(`[Page Reader] ✗ Failed: ${result.url}`, e.message);
+                }
+            });
+
+            // Wait for page reads with a timeout
+            await Promise.race([
+                Promise.allSettled(pagePromises),
+                new Promise(resolve => setTimeout(resolve, 8000))
+            ]);
+
+            const enriched = results.filter(r => r._pageRead).length;
+            console.log(`[Page Reader] Enriched ${enriched}/${toRead.length} results with full page content`);
+            return results;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
         // ═══ ADDITIONAL BROAD SEARCH SOURCES ═════════════════════════════
         // ══════════════════════════════════════════════════════════════════
 
-        // ── SearXNG Metasearch (aggregates Google, Bing, Yahoo, DuckDuckGo,
-        //    Brave, Mojeek, Startpage, Qwant, and 60+ more search engines).
-        //    Each result URL points to the ACTUAL source website (CNN, BBC,
-        //    Reddit, Stack Overflow, MDN, etc.). Tries multiple public instances.
+        // ── SearXNG Metasearch — MAXIMUM COVERAGE MODE ──────────────────
+        //    Aggregates Google, Bing, Yahoo, DuckDuckGo, Brave, Mojeek,
+        //    Startpage, Qwant, and 60+ more engines. Each result URL
+        //    points to the ACTUAL source website (CNN, BBC, Reddit, MDN, etc.)
+        //
+        //    Strategy: fire ALL 30 instances in parallel across multiple
+        //    search categories (general, news, science/IT). MERGE all
+        //    results from every instance that responds. Deduplicate by URL.
+        //    This yields 50-200+ results from hundreds of unique websites.
         async function getSearXNGResults(query) {
-            const instances = [
+            const ALL_INSTANCES = [
                 'https://search.sapti.me',
                 'https://searx.be',
                 'https://search.bus-hit.me',
@@ -3980,48 +4205,515 @@
                 'https://paulgo.io',
                 'https://s.trung.fun',
                 'https://searx.fmac.xyz',
-                'https://searx.colbster937.dev'
+                'https://searx.colbster937.dev',
+                'https://searx.nixnet.services',
+                'https://search.mdosch.de',
+                'https://searx.divided-by-zero.eu',
+                'https://searx.namejeff.xyz',
+                'https://searx.prvcy.eu',
+                'https://search.neljandansen.eu',
+                'https://searx.tuxcloud.net',
+                'https://searx.mha.fi',
+                'https://searx.juancord.xyz',
+                'https://searx.dresden.network',
+                'https://searx.hu',
+                'https://search.hbubli.cc',
+                'https://searx.sev.monster',
+                'https://searx.ox2.fr',
+                'https://search.leptons.xyz',
+                'https://searx.lavatech.top',
+                'https://searx.zhenyapav.com',
+                'https://searx.si'
             ];
+
+            const CACHE_KEY = '_searxng_working_instances';
+            const CACHE_TS_KEY = '_searxng_cache_ts';
+
+            // Helper: fetch from a single instance + category
+            const fetchOne = async (instance, category = 'general', page = 1, timeoutMs = 8000) => {
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), timeoutMs);
+                try {
+                    const res = await fetch(
+                        `${instance}/search?q=${encodeURIComponent(query)}&format=json&categories=${category}&pageno=${page}&language=en`,
+                        { signal: controller.signal }
+                    );
+                    clearTimeout(timer);
+                    if (!res.ok) return [];
+                    const data = await res.json();
+                    if (!data.results?.length) return [];
+                    return data.results.slice(0, 25).map(r => {
+                        let domain = '';
+                        try { domain = new URL(r.url).hostname.replace('www.', ''); } catch { domain = ''; }
+                        return {
+                            title: r.title || '',
+                            url: r.url || '',
+                            snippet: (r.content || '').replace(/<[^>]*>/g, '').slice(0, 300),
+                            _source: 'SearXNG',
+                            _domain: domain,
+                            _engine: r.engines?.join(',') || '',
+                            _score: r.score || 0
+                        };
+                    }).filter(r => r.title && r.snippet);
+                } catch {
+                    clearTimeout(timer);
+                    return [];
+                }
+            };
+
+            // Deduplicate by URL
+            const dedup = (results) => {
+                const seen = new Set();
+                return results.filter(r => {
+                    try {
+                        const key = new URL(r.url).pathname.toLowerCase() + new URL(r.url).hostname.toLowerCase();
+                        if (seen.has(key)) return false;
+                        seen.add(key);
+                        return true;
+                    } catch { return true; }
+                });
+            };
+
+            // 1. Check for cached working instances
+            let cachedInstances = [];
+            try {
+                const cached = sessionStorage.getItem(CACHE_KEY);
+                const cachedTs = parseInt(sessionStorage.getItem(CACHE_TS_KEY) || '0');
+                if (cached && (Date.now() - cachedTs) < 600000) {
+                    cachedInstances = JSON.parse(cached);
+                }
+            } catch { /* sessionStorage unavailable */ }
+
+            // 2. Build the query plan: fire ALL instances in parallel
+            const categories = ['general', 'news', 'science'];
+            const allPromises = [];
+            const workingInstances = new Set();
+
             // Shuffle instances to distribute load
+            const instances = [...ALL_INSTANCES];
             for (let i = instances.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [instances[i], instances[j]] = [instances[j], instances[i]];
             }
-            // Try up to 4 instances in parallel for speed
-            const tryBatch = async (batch) => {
-                const attempts = batch.map(async (instance) => {
-                    try {
-                        const controller = new AbortController();
-                        setTimeout(() => controller.abort(), 6000);
-                        const res = await fetch(
-                            `${instance}/search?q=${encodeURIComponent(query)}&format=json&categories=general&pageno=1&language=en`,
-                            { signal: controller.signal }
+
+            // If we have cached working instances, hit them FIRST with multiple categories + pages
+            if (cachedInstances.length > 0) {
+                cachedInstances.forEach(inst => {
+                    categories.forEach(cat => {
+                        allPromises.push(
+                            fetchOne(inst, cat, 1, 7000).then(results => {
+                                if (results.length > 0) workingInstances.add(inst);
+                                return results;
+                            })
                         );
-                        if (!res.ok) return null;
-                        const data = await res.json();
-                        if (!data.results?.length) return null;
-                        return data.results.slice(0, 15).map(r => {
-                            let domain = '';
-                            try { domain = new URL(r.url).hostname.replace('www.', ''); } catch { domain = ''; }
-                            return {
-                                title: r.title || '',
-                                url: r.url || '',
-                                snippet: (r.content || '').replace(/<[^>]*>/g, '').slice(0, 300),
-                                _source: 'SearXNG',
-                                _domain: domain
-                            };
-                        }).filter(r => r.title && r.snippet);
-                    } catch { return null; }
+                    });
+                    // Also grab page 2 from general for more depth
+                    allPromises.push(
+                        fetchOne(inst, 'general', 2, 7000).then(results => {
+                            if (results.length > 0) workingInstances.add(inst);
+                            return results;
+                        })
+                    );
                 });
-                const results = await Promise.all(attempts);
-                return results.find(r => r !== null && r.length > 0) || null;
-            };
-            // Try first batch of 4
-            let results = await tryBatch(instances.slice(0, 4));
-            if (!results && instances.length > 4) {
-                results = await tryBatch(instances.slice(4, 8));
             }
-            return results || [];
+
+            // Fire ALL other instances with 'general' category
+            instances.forEach(inst => {
+                if (!cachedInstances.includes(inst)) {
+                    allPromises.push(
+                        fetchOne(inst, 'general', 1, 8000).then(results => {
+                            if (results.length > 0) workingInstances.add(inst);
+                            return results;
+                        })
+                    );
+                }
+            });
+
+            // Also fire a subset of instances with 'news' category for broader coverage
+            instances.slice(0, 10).forEach(inst => {
+                if (!cachedInstances.includes(inst)) {
+                    allPromises.push(
+                        fetchOne(inst, 'news', 1, 8000).then(results => {
+                            if (results.length > 0) workingInstances.add(inst);
+                            return results;
+                        })
+                    );
+                }
+            });
+
+            // 3. Wait for all with a generous timeout
+            const settled = await Promise.race([
+                Promise.allSettled(allPromises),
+                new Promise(resolve => setTimeout(resolve, 12000)).then(() => allPromises.map(() => ({ status: 'fulfilled', value: [] })))
+            ]);
+
+            // 4. Merge ALL results from every instance that responded
+            let allResults = [];
+            if (Array.isArray(settled)) {
+                settled.forEach(s => {
+                    if (s.status === 'fulfilled' && Array.isArray(s.value)) {
+                        allResults.push(...s.value);
+                    }
+                });
+            }
+
+            // 5. Cache working instances for next search
+            if (workingInstances.size > 0) {
+                try {
+                    sessionStorage.setItem(CACHE_KEY, JSON.stringify([...workingInstances].slice(0, 5)));
+                    sessionStorage.setItem(CACHE_TS_KEY, String(Date.now()));
+                } catch { /* ignore */ }
+            }
+
+            // 6. Deduplicate and return
+            const final = dedup(allResults);
+            const uniqueDomains = new Set(final.map(r => r._domain).filter(Boolean));
+            console.log(`[SearXNG] ${workingInstances.size}/${instances.length} instances responded | ${allResults.length} raw results → ${final.length} unique | ${uniqueDomains.size} unique domains`);
+            return final;
+        }
+
+        // ── Brave Search Web Results (free, no API key needed for suggest) ──
+        // Uses Brave's web suggest API as an additional web search signal
+        async function getBraveSearchSuggest(query) {
+            const results = [];
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 5000);
+                const res = await fetch(
+                    `https://search.brave.com/api/suggest?q=${encodeURIComponent(query)}&rich=true`,
+                    { signal: controller.signal }
+                );
+                if (res.ok) {
+                    const data = await res.json();
+                    // Extract rich suggestions which often contain snippets and URLs
+                    if (data[1]?.length) {
+                        data[1].forEach((suggestion, i) => {
+                            const meta = data[2]?.[i] || '';
+                            const url = data[3]?.[i] || `https://search.brave.com/search?q=${encodeURIComponent(suggestion)}`;
+                            if (suggestion && suggestion.length > 3) {
+                                results.push({
+                                    title: suggestion,
+                                    url: url,
+                                    snippet: meta || `Related: ${suggestion}`,
+                                    _source: 'Brave Suggest'
+                                });
+                            }
+                        });
+                    }
+                }
+            } catch { /* Brave suggest failed */ }
+            return results;
+        }
+
+        // ── Semantic Scholar API (free, CORS-enabled, no key needed) ────────
+        // Superior to arXiv for academic search — returns structured data with
+        // citation counts, abstracts, and venue info
+        async function getSemanticScholarResults(query) {
+            const results = [];
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 5000);
+                const res = await fetch(
+                    `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&limit=4&fields=title,abstract,url,venue,year,citationCount,authors`,
+                    { signal: controller.signal }
+                );
+                if (res.ok) {
+                    const data = await res.json();
+                    (data.data || []).forEach(paper => {
+                        if (!paper.title) return;
+                        const authors = (paper.authors || []).slice(0, 3).map(a => a.name).join(', ');
+                        const abstract = (paper.abstract || '').slice(0, 250);
+                        results.push({
+                            title: `📄 ${paper.title}`,
+                            url: paper.url || `https://www.semanticscholar.org/paper/${paper.paperId}`,
+                            snippet: `${authors ? 'Authors: ' + authors + ' | ' : ''}${paper.venue ? 'Venue: ' + paper.venue + ' | ' : ''}${paper.year ? 'Year: ' + paper.year + ' | ' : ''}Citations: ${paper.citationCount || 0}${abstract ? '\n' + abstract + '...' : ''}`,
+                            _source: 'Semantic Scholar'
+                        });
+                    });
+                }
+            } catch { /* Semantic Scholar failed */ }
+            return results;
+        }
+
+        // ── MediaWiki Full-Text Search (enhanced Wikipedia with more results) ─
+        // Uses the generator=search API for richer, more diverse Wikipedia results
+        async function getWikipediaFullSearch(query) {
+            const results = [];
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 5000);
+                const res = await fetch(
+                    `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=5&prop=extracts|info&exintro=1&explaintext=1&exlimit=5&inprop=url&format=json&origin=*`,
+                    { signal: controller.signal }
+                );
+                if (res.ok) {
+                    const data = await res.json();
+                    const pages = data.query?.pages || {};
+                    for (const page of Object.values(pages)) {
+                        if (page.extract && page.title) {
+                            results.push({
+                                title: `📖 ${page.title}`,
+                                url: page.fullurl || `https://en.wikipedia.org/wiki/${encodeURIComponent(page.title.replace(/ /g, '_'))}`,
+                                snippet: page.extract.slice(0, 350) + (page.extract.length > 350 ? '...' : ''),
+                                _source: 'Wikipedia Full'
+                            });
+                        }
+                    }
+                }
+            } catch { /* Wikipedia full search failed */ }
+            return results;
+        }
+
+        // ── Marginalia Search (independent index focused on non-commercial content) ─
+        // Indexes smaller, high-quality, non-SEO websites. Great for finding
+        // unique content that Google/Bing won't surface.
+        async function getMarginaliaResults(query) {
+            const results = [];
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 5000);
+                const res = await fetch(
+                    `https://api.marginalia.nu/public/search/${encodeURIComponent(query)}?count=5&index=0`,
+                    { signal: controller.signal, headers: { 'Accept': 'application/json' } }
+                );
+                if (res.ok) {
+                    const data = await res.json();
+                    (data.results || []).forEach(r => {
+                        if (!r.url) return;
+                        let domain = '';
+                        try { domain = new URL(r.url).hostname.replace('www.', ''); } catch { }
+                        results.push({
+                            title: r.title || r.description?.slice(0, 80) || domain,
+                            url: r.url,
+                            snippet: (r.description || '').slice(0, 300),
+                            _source: 'Marginalia',
+                            _domain: domain
+                        });
+                    });
+                }
+            } catch { /* Marginalia failed */ }
+            return results;
+        }
+
+        // ── Wikimedia Commons Search (images, media from Wikimedia) ──────────
+        async function getWikimediaCommonsResults(query) {
+            const results = [];
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 4000);
+                const res = await fetch(
+                    `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&srnamespace=6&srlimit=3&format=json&origin=*`,
+                    { signal: controller.signal }
+                );
+                if (res.ok) {
+                    const data = await res.json();
+                    (data.query?.search || []).forEach(item => {
+                        const title = item.title.replace('File:', '');
+                        const snippet = (item.snippet || '').replace(/<[^>]*>/g, '').slice(0, 200);
+                        results.push({
+                            title: `🖼️ ${title}`,
+                            url: `https://commons.wikimedia.org/wiki/${encodeURIComponent(item.title)}`,
+                            snippet: snippet || `Wikimedia Commons media: ${title}`,
+                            _source: 'Wikimedia Commons'
+                        });
+                    });
+                }
+            } catch { /* Wikimedia Commons failed */ }
+            return results;
+        }
+
+        // ── Internet Archive (Wayback Machine) Search ────────────────────────
+        // Searches the Wayback Machine's CDX API for cached pages
+        async function getInternetArchiveResults(query) {
+            const results = [];
+            try {
+                const controller = new AbortController();
+                setTimeout(() => controller.abort(), 5000);
+                // Use the Wayback Availability API
+                const res = await fetch(
+                    `https://archive.org/advancedsearch.php?q=${encodeURIComponent(query)}&fl[]=identifier&fl[]=title&fl[]=description&fl[]=mediatype&rows=4&page=1&output=json`,
+                    { signal: controller.signal }
+                );
+                if (res.ok) {
+                    const data = await res.json();
+                    (data.response?.docs || []).forEach(doc => {
+                        if (!doc.title) return;
+                        results.push({
+                            title: `📦 ${doc.title}`,
+                            url: `https://archive.org/details/${doc.identifier}`,
+                            snippet: `${doc.description ? (Array.isArray(doc.description) ? doc.description[0] : doc.description).slice(0, 250) : 'Internet Archive resource'} | Type: ${doc.mediatype || 'unknown'}`,
+                            _source: 'Internet Archive'
+                        });
+                    });
+                }
+            } catch { /* Internet Archive failed */ }
+            return results;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // ═══ DIRECT WEB SEARCH SCRAPING (via CORS proxy) ═════════════════
+        // ══════════════════════════════════════════════════════════════════
+        // These scrape actual search engine HTML result pages to extract
+        // links from the ENTIRE web — same as what ChatGPT does via Bing.
+        // Each search engine indexes BILLIONS of pages.
+
+        // ── DuckDuckGo HTML Lite Search (scrape actual web results) ──────
+        async function scrapeDuckDuckGoHTML(query) {
+            const results = [];
+            try {
+                const html = await fetchPageViaProxy(`https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`, 6000);
+                if (!html) return results;
+
+                // DDG Lite has results in <a class="result-link"> or simple <a> tags after <td>
+                // Parse result links and snippets
+                const linkRegex = /<a[^>]*rel="nofollow"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+                const snippetRegex = /<td[^>]*class="result-snippet"[^>]*>([\s\S]*?)<\/td>/gi;
+
+                const links = [];
+                let match;
+                while ((match = linkRegex.exec(html)) !== null) {
+                    const url = match[1];
+                    const title = match[2].replace(/<[^>]+>/g, '').trim();
+                    if (url && title && /^https?:\/\//i.test(url) && !url.includes('duckduckgo.com')) {
+                        links.push({ url, title });
+                    }
+                }
+
+                const snippets = [];
+                while ((match = snippetRegex.exec(html)) !== null) {
+                    snippets.push(match[1].replace(/<[^>]+>/g, '').trim());
+                }
+
+                links.slice(0, 10).forEach((link, i) => {
+                    let domain = '';
+                    try { domain = new URL(link.url).hostname.replace('www.', ''); } catch { }
+                    results.push({
+                        title: link.title,
+                        url: link.url,
+                        snippet: snippets[i] || `Web result from ${domain}`,
+                        _source: 'DDG Web',
+                        _domain: domain
+                    });
+                });
+            } catch { /* DDG HTML scrape failed */ }
+            return results;
+        }
+
+        // ── Google Web Search (scrape via CORS proxy) ────────────────────
+        async function scrapeGoogleHTML(query) {
+            const results = [];
+            try {
+                const html = await fetchPageViaProxy(`https://www.google.com/search?q=${encodeURIComponent(query)}&hl=en&num=10`, 6000);
+                if (!html) return results;
+
+                // Google wraps results in <div class="g"> with <a href="..."> and <span>
+                // Extract URLs from Google's result links
+                const resultRegex = /<a[^>]*href="\/url\?q=([^&"]+)[^"]*"[^>]*>([\s\S]*?)<\/a>/gi;
+                const altRegex = /<a[^>]*href="(https?:\/\/(?!www\.google|accounts\.google|support\.google|maps\.google|play\.google)[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+
+                let match;
+                const seen = new Set();
+
+                // Try primary format first
+                while ((match = resultRegex.exec(html)) !== null && results.length < 10) {
+                    try {
+                        const url = decodeURIComponent(match[1]);
+                        if (seen.has(url) || !url.startsWith('http')) continue;
+                        seen.add(url);
+                        const title = match[2].replace(/<[^>]+>/g, '').trim();
+                        if (!title || title.length < 5) continue;
+                        let domain = '';
+                        try { domain = new URL(url).hostname.replace('www.', ''); } catch { }
+                        results.push({
+                            title: title,
+                            url: url,
+                            snippet: `Web result from ${domain}`,
+                            _source: 'Google Web',
+                            _domain: domain
+                        });
+                    } catch { continue; }
+                }
+
+                // Fallback: extract any external links
+                if (results.length < 3) {
+                    while ((match = altRegex.exec(html)) !== null && results.length < 10) {
+                        try {
+                            const url = match[1];
+                            if (seen.has(url)) continue;
+                            seen.add(url);
+                            const title = match[2].replace(/<[^>]+>/g, '').trim();
+                            if (!title || title.length < 5) continue;
+                            let domain = '';
+                            try { domain = new URL(url).hostname.replace('www.', ''); } catch { }
+                            if (domain.includes('google.com')) continue;
+                            results.push({
+                                title: title.slice(0, 120),
+                                url: url,
+                                snippet: `Web result from ${domain}`,
+                                _source: 'Google Web',
+                                _domain: domain
+                            });
+                        } catch { continue; }
+                    }
+                }
+            } catch { /* Google HTML scrape failed */ }
+            return results;
+        }
+
+        // ── Bing Web Search (scrape via CORS proxy) ──────────────────────
+        async function scrapeBingHTML(query) {
+            const results = [];
+            try {
+                const html = await fetchPageViaProxy(`https://www.bing.com/search?q=${encodeURIComponent(query)}&setlang=en`, 6000);
+                if (!html) return results;
+
+                // Bing results have <li class="b_algo"><h2><a href="...">
+                const resultRegex = /<li[^>]*class="b_algo"[^>]*>[\s\S]*?<a[^>]*href="(https?:\/\/[^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/gi;
+                const altRegex = /<a[^>]*href="(https?:\/\/(?!www\.bing|login\.live|go\.microsoft)[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+
+                let match;
+                const seen = new Set();
+
+                while ((match = resultRegex.exec(html)) !== null && results.length < 10) {
+                    const url = match[1];
+                    if (seen.has(url)) continue;
+                    seen.add(url);
+                    const title = match[2].replace(/<[^>]+>/g, '').trim();
+                    const snippet = match[3].replace(/<[^>]+>/g, '').trim();
+                    if (!title || !url) continue;
+                    let domain = '';
+                    try { domain = new URL(url).hostname.replace('www.', ''); } catch { }
+                    results.push({
+                        title: title,
+                        url: url,
+                        snippet: snippet.slice(0, 300) || `Web result from ${domain}`,
+                        _source: 'Bing Web',
+                        _domain: domain
+                    });
+                }
+
+                // Fallback
+                if (results.length < 3) {
+                    while ((match = altRegex.exec(html)) !== null && results.length < 10) {
+                        const url = match[1];
+                        if (seen.has(url)) continue;
+                        seen.add(url);
+                        const title = match[2].replace(/<[^>]+>/g, '').trim();
+                        if (!title || title.length < 5) continue;
+                        let domain = '';
+                        try { domain = new URL(url).hostname.replace('www.', ''); } catch { }
+                        if (domain.includes('bing.com') || domain.includes('microsoft.com')) continue;
+                        results.push({
+                            title: title.slice(0, 120),
+                            url: url,
+                            snippet: `Web result from ${domain}`,
+                            _source: 'Bing Web',
+                            _domain: domain
+                        });
+                    }
+                }
+            } catch { /* Bing HTML scrape failed */ }
+            return results;
         }
 
         // ── Reddit Search (covers every topic — millions of communities) ─
@@ -4394,41 +5086,26 @@
             // hundreds of different websites.
             // ═════════════════════════════════════════════════════════
 
-            // SearXNG — THE KEY SOURCE. Metasearch engine that aggregates
-            // Google, Bing, Yahoo, DuckDuckGo, Brave, Mojeek, Startpage,
-            // Qwant, and 60+ other search engines. Returns results from
-            // ANY website on the internet.
+            // ── PRIMARY WEB SEARCH: scrape actual search engines ──
+            // These pull results from the ENTIRE internet (billions of pages)
             track('SearXNG (70+ engines)', getSearXNGResults(apiQuery));
+            track('Google Web', scrapeGoogleHTML(apiQuery));
+            track('DDG Web', scrapeDuckDuckGoHTML(apiQuery));
+            track('Bing Web', scrapeBingHTML(apiQuery));
 
-            // Reddit — millions of communities discussing every topic
+            // ── SUPPLEMENTARY BROAD SOURCES ──
+            track('Marginalia', getMarginaliaResults(apiQuery));
+            track('Brave Suggest', getBraveSearchSuggest(apiQuery));
             track('Reddit', getRedditResults(apiQuery));
-
-            // DuckDuckGo Instant Answers — definitions, calculations, facts
             track('DuckDuckGo', getDuckDuckGoAnswer(apiQuery));
-
-            // DuckDuckGo Extended — definitions, infoboxes, related topics
             track('DDG Extended', getDuckDuckGoWebResults(apiQuery));
-
-            // Wikipedia (limited to 2 results for diversity)
-            track('Wikipedia', getWikipediaExcerpts(apiQuery));
-
-            // Wikimedia REST — structured summaries
-            track('Wikimedia REST', getWikimediaRestSummary(apiQuery));
-
-            // Wikidata — entity data
-            track('Wikidata', getWikidataResults(apiQuery));
-
-            // Wiktionary — definitions
-            track('Wiktionary', getWiktionaryDefinitions(apiQuery));
-
-            // Hacker News — tech, science, business news & discussions
             track('Hacker News', getHackerNewsResults(apiQuery));
-
-            // Reddit News — from r/news, r/worldnews, r/science, etc.
             track('Reddit News', getRedditNews(apiQuery));
-
-            // StackExchange multi-site (SuperUser, ServerFault, etc.)
             track('StackExchange Multi', getStackExchangeMultiSite(apiQuery));
+            track('Internet Archive', getInternetArchiveResults(apiQuery));
+
+            // ── WIKIPEDIA (capped — only 1 source, 2 results max) ──
+            track('Wikipedia', getWikipediaExcerpts(apiQuery));
 
             // ═════════════════════════════════════════════════════════
             // ═══ TIER 2: SPECIALIZED SOURCES (when topic matches) ═══
@@ -4484,12 +5161,14 @@
                 track('arXiv', getArxivResults(apiQuery));
                 // CrossRef academic papers
                 track('CrossRef', getCrossRefResults(apiQuery));
+                // Semantic Scholar — structured academic data with citations
+                track('Semantic Scholar', getSemanticScholarResults(apiQuery));
             }
 
-            // ─── Wait for ALL sources (generous 12s timeout) ─────────
+            // ─── Wait for ALL sources (generous 20s timeout) ─────────
             await Promise.race([
                 Promise.allSettled(promises),
-                new Promise(resolve => setTimeout(resolve, 12000))
+                new Promise(resolve => setTimeout(resolve, 20000))
             ]);
 
             // ─── Log results ─────────────────────────────────────────
@@ -4758,7 +5437,8 @@
                 'reuters.com': 0.95, 'apnews.com': 0.95, 'bbc.com': 0.95, 'bbc.co.uk': 0.95,
                 'nytimes.com': 0.93, 'washingtonpost.com': 0.93, 'theguardian.com': 0.93,
                 'nature.com': 0.95, 'sciencedirect.com': 0.95, 'pubmed.ncbi.nlm.nih.gov': 0.95,
-                'arxiv.org': 0.92, 'scholar.google.com': 0.92,
+                'arxiv.org': 0.92, 'scholar.google.com': 0.92, 'semanticscholar.org': 0.90,
+                'api.semanticscholar.org': 0.90, 'archive.org': 0.80, 'marginalia.nu': 0.70,
                 'who.int': 0.95, 'cdc.gov': 0.95, 'nih.gov': 0.95,
                 'nasa.gov': 0.95, 'fda.gov': 0.93, 'sec.gov': 0.93,
                 // Tier 2: Major reliable sources (0.75-0.89)
@@ -4808,16 +5488,19 @@
             // ─── 4. SOURCE QUALITY SCORING ───────────────────────────
             const SOURCE_QUALITY = {
                 'SearXNG': 0.85, 'SearXNG (70+ engines)': 0.85,
+                'Google Web': 0.88, 'DDG Web': 0.85, 'Bing Web': 0.85,
                 'Weather (Open-Meteo)': 0.90,
                 'Stocks (Yahoo Finance)': 0.85, 'Crypto (CoinGecko)': 0.85,
                 'Currency (Frankfurter)': 0.85, 'Wikipedia': 0.80,
-                'Wikimedia REST': 0.80, 'Wikidata': 0.75,
+                'Wikipedia Full': 0.82, 'Wikimedia REST': 0.80, 'Wikidata': 0.75,
                 'DuckDuckGo': 0.75, 'DDG Extended': 0.70,
                 'DDG Definition': 0.75, 'DDG Infobox': 0.80, 'DDG Related': 0.60,
                 'Reddit': 0.55, 'Reddit News': 0.60,
                 'Hacker News': 0.65, 'StackOverflow': 0.80,
                 'StackExchange': 0.75, 'StackExchange Multi': 0.70,
-                'arXiv': 0.85, 'CrossRef': 0.80,
+                'arXiv': 0.85, 'CrossRef': 0.80, 'Semantic Scholar': 0.88,
+                'Marginalia': 0.70, 'Brave Suggest': 0.65,
+                'Internet Archive': 0.72, 'Wikimedia Commons': 0.68,
                 'Books (Open Library)': 0.70, 'iTunes': 0.65,
                 'GitHub': 0.75, 'Wiktionary': 0.70, 'DateTime': 0.95,
             };
@@ -4916,13 +5599,13 @@
 
             // Intent-based source boosts
             const intentSourceBoosts = {
-                'definition': { 'Wikipedia': 0.12, 'Wikimedia REST': 0.10, 'Wikidata': 0.08, 'Wiktionary': 0.15, 'DuckDuckGo': 0.08 },
-                'comparison': {},
-                'how-to': { 'StackOverflow': 0.12, 'StackExchange Multi': 0.08, 'GitHub': 0.08 },
-                'current-events': { 'SearXNG': 0.10, 'SearXNG (70+ engines)': 0.10, 'Reddit News': 0.08, 'Hacker News': 0.08, 'Reddit': 0.05 },
-                'opinion': { 'Reddit': 0.10, 'Hacker News': 0.08 },
-                'factual': { 'Wikipedia': 0.10, 'Wikimedia REST': 0.08, 'DuckDuckGo': 0.08 },
-                'general': {},
+                'definition': { 'Wikipedia': 0.12, 'Wikipedia Full': 0.10, 'Wikimedia REST': 0.10, 'Wikidata': 0.08, 'Wiktionary': 0.15, 'DuckDuckGo': 0.08 },
+                'comparison': { 'Marginalia': 0.05 },
+                'how-to': { 'StackOverflow': 0.12, 'StackExchange Multi': 0.08, 'GitHub': 0.08, 'Marginalia': 0.05 },
+                'current-events': { 'SearXNG': 0.10, 'SearXNG (70+ engines)': 0.10, 'Reddit News': 0.08, 'Hacker News': 0.08, 'Reddit': 0.05, 'Brave Suggest': 0.05 },
+                'opinion': { 'Reddit': 0.10, 'Hacker News': 0.08, 'Marginalia': 0.05 },
+                'factual': { 'Wikipedia': 0.10, 'Wikipedia Full': 0.08, 'Wikimedia REST': 0.08, 'DuckDuckGo': 0.08, 'Semantic Scholar': 0.05 },
+                'general': { 'Marginalia': 0.03, 'Brave Suggest': 0.03 },
             };
             const sourceBoosts = intentSourceBoosts[queryIntent] || {};
 
@@ -5025,8 +5708,8 @@
             const ranked = [];
             const domainCountInTop = {};
             const sourceCountInTop = {};
-            const MAX_PER_DOMAIN_IN_TOP_10 = 2;
-            const MAX_PER_SOURCE_IN_TOP_10 = 3;
+            const MAX_PER_DOMAIN = 2;       // hard cap: max 2 results from same domain ANYWHERE
+            const MAX_PER_SOURCE = 3;       // hard cap: max 3 results from same source ANYWHERE
 
             function getDomain(url) {
                 try { return new URL(url).hostname.replace('www.', '').toLowerCase(); }
@@ -5042,11 +5725,9 @@
                     const domainCount = domainCountInTop[domain] || 0;
                     const srcCount = sourceCountInTop[src] || 0;
 
-                    // In top 10, enforce both domain and source diversity
-                    if (ranked.length < 10) {
-                        if (domain && domainCount >= MAX_PER_DOMAIN_IN_TOP_10) continue;
-                        if (srcCount >= MAX_PER_SOURCE_IN_TOP_10) continue;
-                    }
+                    // Enforce domain and source diversity at ALL positions
+                    if (domain && domainCount >= MAX_PER_DOMAIN) continue;
+                    if (srcCount >= MAX_PER_SOURCE) continue;
 
                     if (domain) domainCountInTop[domain] = domainCount + 1;
                     sourceCountInTop[src] = srcCount + 1;
@@ -5066,7 +5747,7 @@
                 console.log(`  [${i + 1}] score=${r._score.toFixed(3)} bm25=${r._relevance.toFixed(3)} auth=${r._authority.toFixed(2)} rcncy=${r._recency.toFixed(2)} src=${r._source} dom=${getDomain(r.url)} | ${(r.title || '').substring(0, 60)}`);
             });
 
-            return ranked.slice(0, 25);
+            return ranked.slice(0, 40);
         }
 
         // ── Click-outside / Escape to close any modal ──────────────────────────────
@@ -5323,18 +6004,10 @@
             _acDebounceTimer = setTimeout(async () => {
                 const items = [];
 
-                // Recent queries
-                const recent = getRecentQueries(text);
-                recent.forEach(q => {
-                    items.push({ text: q, type: 'recent', icon: 'fa-solid fa-clock-rotate-left' });
-                });
-
-                // DDG suggestions
+                // DDG suggestions (web search autocomplete only)
                 const suggestions = await fetchDDGSuggestions(text);
                 suggestions.forEach(s => {
-                    if (!items.some(i => i.text.toLowerCase() === s.toLowerCase())) {
-                        items.push({ text: s, type: 'suggestion', icon: 'fa-solid fa-magnifying-glass' });
-                    }
+                    items.push({ text: s, icon: 'fa-solid fa-magnifying-glass' });
                 });
 
                 // Limit to 6
@@ -5354,7 +6027,6 @@
                      data-index="${idx}" onclick="selectAutocomplete(${idx})">
                     <i class="${item.icon}"></i>
                     <span class="ac-text">${escapeHtml(item.text)}</span>
-                    <span class="ac-type">${item.type}</span>
                 </div>
             `).join('');
             dropdown.style.display = 'block';
@@ -5930,24 +6602,16 @@
                             searchIndicator.className = 'web-search-indicator';
                             searchIndicator.innerHTML = '<i class="fa-solid fa-spinner"></i> <span>Researching…</span>';
                             loadingEl.parentNode.insertBefore(searchIndicator, loadingEl);
-
-                            // Phase 2: after 2s switch to "Reading sources…"
-                            setTimeout(() => {
-                                if (searchIndicator && searchIndicator.parentNode) {
-                                    searchIndicator.classList.add('phase-reading');
-                                    searchIndicator.querySelector('span').textContent = 'Reading sources…';
-                                }
-                            }, 2000);
-                            // Phase 3: after 5s switch to "Synthesizing answer…"
-                            setTimeout(() => {
-                                if (searchIndicator && searchIndicator.parentNode) {
-                                    searchIndicator.classList.remove('phase-reading');
-                                    searchIndicator.classList.add('phase-synthesizing');
-                                    searchIndicator.querySelector('span').textContent = 'Synthesizing answer…';
-                                }
-                            }, 5000);
                         }
                         webSearchResults = await performWebSearch(searchQuery);
+
+                        // ── PHASE 2: Read actual web pages (ChatGPT-level browsing) ──
+                        if (webSearchResults && webSearchResults.length > 0) {
+                            if (searchIndicator && searchIndicator.parentNode) {
+                                searchIndicator.querySelector('span').textContent = 'Reading pages…';
+                            }
+                            webSearchResults = await enrichResultsWithPageContent(webSearchResults, 6);
+                        }
                     } else {
                         console.log('[Search] Skipped search — query too vague or trivial');
                     }
@@ -5956,8 +6620,9 @@
                         const count = webSearchResults.length;
                         const srcCount = new Set(webSearchResults.map(r => r._source).filter(Boolean)).size;
                         const domainCount = new Set(webSearchResults.map(r => { try { return new URL(r.url).hostname; } catch { return ''; } }).filter(Boolean)).size;
+                        const pagesRead = webSearchResults.filter(r => r._pageRead).length;
                         searchIndicator.className = 'web-search-indicator phase-done';
-                        searchIndicator.innerHTML = `<i class="fa-solid fa-check"></i> <span>Found ${count} results from ${srcCount} APIs across ${domainCount} websites</span>`;
+                        searchIndicator.innerHTML = `<i class="fa-solid fa-check"></i> <span>${count} results from ${domainCount} sites${pagesRead > 0 ? ` (${pagesRead} pages read)` : ''}</span>`;
                         setTimeout(() => { if (searchIndicator.parentNode) searchIndicator.remove(); }, 3000);
                     }
                 } catch (err) { console.warn('Web search failed:', err); }
@@ -6005,25 +6670,44 @@
                     try { return new URL(r.url).hostname.replace('www.', ''); } catch { return ''; }
                 }).filter(Boolean))];
 
-                let sc = `═══ LIVE WEB SEARCH RESULTS ═══\nRetrieved: ${new Date().toLocaleString()}\nAPIs queried: SearXNG (aggregates Google, Bing, Yahoo, Brave, Mojeek, Startpage, Qwant & 60+ engines), Reddit, DuckDuckGo, Wikipedia, Wikimedia, Wikidata, Wiktionary, Hacker News, StackExchange (multi-site), arXiv, CrossRef, Open-Meteo, CoinGecko, Frankfurter, Open Library, iTunes, GitHub, Yahoo Finance\nSources that returned data: ${uniqueSources.join(', ')}\nUnique website domains in results: ${uniqueDomains.slice(0, 15).join(', ')}${uniqueDomains.length > 15 ? ` (+${uniqueDomains.length - 15} more)` : ''}\nTotal results: ${webSearchResults.length}\n\n`;
+                let sc = `═══ LIVE WEB SEARCH RESULTS ═══\nRetrieved: ${new Date().toLocaleString()}\nSources that returned data: ${uniqueSources.join(', ')}\nUnique domains: ${uniqueDomains.slice(0, 15).join(', ')}${uniqueDomains.length > 15 ? ` (+${uniqueDomains.length - 15} more)` : ''}\nTotal results: ${webSearchResults.length}\n\n`;
                 webSearchResults.forEach((r, i) => {
-                    sc += `━━━ Result [${i + 1}] ━━━\nTitle: ${r.title}\n${r.url ? 'Source URL: ' + r.url + '\n' : ''}Data: ${r.snippet}\n\n`;
+                    sc += `━━━ Source #${i + 1} ━━━\n"${r.title}"\nURL: ${r.url || 'N/A'}\nContent: ${r.snippet}\n\n`;
                 });
-                sc += `═══ SYNTHESIZED ANSWER ENGINE INSTRUCTIONS ═══
-YOU ARE AN AI ANSWER ENGINE with real-time web search. The ${webSearchResults.length} results above are LIVE data from ${uniqueDomains.length} websites via ${uniqueSources.length} search APIs.
+                sc += `═══ CITATION AND ANSWER INSTRUCTIONS ═══
+You have real-time web search results above from ${uniqueDomains.length} websites.
 
-CORE BEHAVIOR:
-1. SYNTHESIZE a comprehensive, well-structured answer by combining insights from MULTIPLE sources — do NOT just summarize one result.
-2. USE this data directly — NEVER say "I don't have access to real-time data" or "I cannot browse the internet."
-3. CITE sources ONLY as markdown links: [Page Title](url) — embedded naturally in your text right after the claim they support.
-4. NEVER use "[Source: Wikipedia]" or "[Source: X]" or "(Source: X)" or any similar tag format. The ONLY acceptable citation format is a proper markdown link like [Title](url).
-5. For factual data (weather, stocks, prices, scores): use EXACT numbers from the results.
-6. Structure your answer with clear headings when the topic has multiple facets.
-7. When sources disagree, present both perspectives with their respective citations.
-8. Prefer authoritative and diverse sources — draw from news, academic, official, and community sources, NOT just Wikipedia.
-9. Skip irrelevant results but ALWAYS incorporate the relevant ones.
-10. NEVER claim you lack current information — the search results ARE current.
-11. End with a brief "Sources" section listing the 3-5 most important references as markdown links.`;
+HOW TO CITE (MANDATORY):
+- ALWAYS cite sources as clickable markdown links: [Page Title](url)
+- Place citations INLINE right after the claim they support
+- Example: "NVIDIA stock is currently trading at $183.04 according to [Yahoo Finance](https://finance.yahoo.com/quote/NVDA)."
+
+FORBIDDEN citation formats (NEVER use these):
+- [1], [2], [Source 1], [Source: X], (Source: X), [Ref 1], or ANY bracketed number/tag
+
+ANSWER RULES:
+1. SYNTHESIZE a comprehensive answer from MULTIPLE sources — don't just summarize one result.
+2. USE this data directly — NEVER say "I don't have access to real-time data."
+3. For factual data (weather, stocks, prices, scores): use EXACT numbers from results.
+4. Prefer authoritative and diverse sources, not just Wikipedia.
+5. NEVER claim you lack current information — the search results ARE current.
+6. End with a brief "Sources" section listing 3-5 important references as markdown links.`;
+
+                // CRITICAL FIX: Ollama models have hardcoded context caps (4096-8192 tokens typical).
+                // Truncate the search results section aggressively for Ollama to leave room for 
+                // conversation history + user message + model response.
+                if (activeEndpoint.type === 'ollama') {
+                    const maxResults = 8;
+                    const maxSnippetLen = 300;
+                    let truncatedSc = `═══ WEB SEARCH RESULTS ═══\nRetrieved: ${new Date().toLocaleString()}\n\n`;
+                    webSearchResults.slice(0, maxResults).forEach((r, i) => {
+                        const snippet = (r.snippet || '').substring(0, maxSnippetLen);
+                        truncatedSc += `Source #${i + 1}: "${r.title}"\nURL: ${r.url || 'N/A'}\n${snippet}\n\n`;
+                    });
+                    truncatedSc += `CITATION RULES: You MUST cite sources as markdown links like [Title](url). Example: "The price is $100 according to [Yahoo Finance](https://finance.yahoo.com/quote/X)."\nNEVER use [1], [2], [Source 1] or any bracketed number. ONLY use markdown links.\nUse EXACT numbers for factual data. Never say you lack current info.`;
+                    sc = truncatedSc;
+                }
+
                 sysContent += '\n\n' + sc;
             }
             // Always inject current date/time context when search is active
@@ -6039,7 +6723,15 @@ CORE BEHAVIOR:
             // Broad check for models/endpoints that often reject the 'system' role ("Developer instructions")
             const modelNameLower = (activeEndpoint.model || '').toLowerCase();
             const endpointUrlLower = (activeEndpoint.url || '').toLowerCase();
-            const isGoogleModel = modelNameLower.includes('gemini') || modelNameLower.includes('gemma') || endpointUrlLower.includes('generativelanguage.googleapis.com');
+            // Don't flag Ollama-served Gemma models as "Google" — Ollama handles system role natively
+            const isGoogleModel = activeEndpoint.type !== 'ollama' && (
+                modelNameLower.includes('gemini') || modelNameLower.includes('gemma') || endpointUrlLower.includes('generativelanguage.googleapis.com')
+            );
+
+            // FINAL SAFETY: Hard-cap the entire sysContent for Ollama to prevent context overflow
+            if (activeEndpoint.type === 'ollama' && sysContent.length > 8000) {
+                sysContent = sysContent.substring(0, 8000) + '\n\n[System prompt truncated for local model context limits]';
+            }
 
             if (sysContent && !isGoogleModel) {
                 conversationHistory.push({ role: 'system', content: sysContent });
@@ -6355,7 +7047,18 @@ CORE BEHAVIOR:
                             : (Array.isArray(m.content) ? m.content.filter(p => p.type === 'text').map(p => p.text).join('\n') : String(m.content));
                         return { role: m.role, content };
                     });
-                    const ollamaBody = { model: activeEndpoint.model, messages: ollamaMsgs, stream: true };
+
+                    // Dynamically calculate required context window to prevent HTTP 400 errors with large web search results
+                    const approxTokens = Math.ceil(JSON.stringify(ollamaMsgs).length / 3.5);
+                    const ctxSize = Math.max(2048, Math.min(32768, approxTokens + 1024)); // Minimum 2k, Maximum 32k, pad by 1k for response
+
+                    const ollamaBody = {
+                        model: activeEndpoint.model,
+                        messages: ollamaMsgs,
+                        stream: true,
+                        options: { num_ctx: ctxSize }
+                    };
+
                     // Attach images to the last user message for vision models
                     if (imageBase64s.length > 0) {
                         const lastMsg = ollamaBody.messages[ollamaBody.messages.length - 1];
@@ -6368,7 +7071,18 @@ CORE BEHAVIOR:
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(ollamaBody)
                     });
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+                    if (!res.ok) {
+                        let errMsg = `HTTP ${res.status}`;
+                        try {
+                            const errData = await res.json();
+                            if (errData.error) errMsg += `: ${errData.error}`;
+                        } catch {
+                            const errText = await res.text();
+                            if (errText) errMsg += `: ${errText}`;
+                        }
+                        throw new Error(errMsg);
+                    }
 
                     for await (const line of streamLines(res.body.getReader())) {
                         if (!line.trim()) continue;
