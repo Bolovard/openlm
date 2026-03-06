@@ -12,6 +12,7 @@
 
     <!-- KaTeX Styles & Scripts -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
 
     <!-- Marked.js for Markdown parsing -->
@@ -3833,18 +3834,78 @@ Sunrise: ${fmtTime(sunrise)} | Sunset: ${fmtTime(sunset)}${hourlyForecast}${week
                         <div class="data-card-forecast">
                             ${dayCols}
                         </div>
-                        <div class="data-card-source">
+                        <div style="position: relative; height: 120px; width: 100%; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 15px;">
+                            <canvas id="weatherChart-%%ID%%"></canvas>
+                        </div>
+                        <div class="data-card-source" style="margin-top: 5px;">
                             Data provided by <a href="https://open-meteo.com" target="_blank" rel="noopener noreferrer">open-meteo.com</a>
                         </div>
                     </div>
                 `;
+
+                // Prepare chart data (next 24 hours)
+                let chartScript = '';
+                if (data.hourly && data.hourly.time && data.hourly.temperature_2m) {
+                    const now = new Date();
+                    const startIdx = data.hourly.time.findIndex(t => new Date(t) >= now);
+                    if (startIdx >= 0) {
+                        const chartLabels = [];
+                        const chartDataPoints = [];
+                        for (let i = startIdx; i < Math.min(startIdx + 24, data.hourly.time.length); i++) {
+                            const t = new Date(data.hourly.time[i]);
+                            chartLabels.push(t.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }));
+                            chartDataPoints.push(data.hourly.temperature_2m[i]);
+                        }
+
+                        chartScript = `
+                            (function() {
+                                const id = 'weatherChart-%%ID%%';
+                                const ctx = document.getElementById(id);
+                                if (!ctx) return;
+                                
+                                const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 120);
+                                gradient.addColorStop(0, 'rgba(234, 179, 8, 0.4)');
+                                gradient.addColorStop(1, 'rgba(234, 179, 8, 0.05)');
+
+                                new Chart(ctx, {
+                                    type: 'line',
+                                    data: {
+                                        labels: ${JSON.stringify(chartLabels)},
+                                        datasets: [{
+                                            label: 'Temperature (°F)',
+                                            data: ${JSON.stringify(chartDataPoints)},
+                                            borderColor: '#eab308',
+                                            borderWidth: 2,
+                                            tension: 0.4,
+                                            fill: true,
+                                            backgroundColor: gradient,
+                                            pointRadius: 0,
+                                            pointHoverRadius: 4
+                                        }]
+                                    },
+                                    options: {
+                                        responsive: true,
+                                        maintainAspectRatio: false,
+                                        plugins: { legend: { display: false } },
+                                        scales: {
+                                            x: { display: false },
+                                            y: { display: false, min: Math.min(...${JSON.stringify(chartDataPoints)}) - 5 }
+                                        },
+                                        interaction: { mode: 'index', intersect: false }
+                                    }
+                                });
+                            })();
+                        `;
+                    }
+                }
 
                 console.log(`[Weather] Open-Meteo returned: ${c.temperature_2m}°F for ${locationName}`);
                 return {
                     title: `Current Weather in ${locationName || 'your area'} — ${c.temperature_2m}°F ${desc}`,
                     url: `https://open-meteo.com`,
                     snippet: snippet,
-                    _widgetHtml: widgetHtml
+                    _widgetHtml: widgetHtml,
+                    _widgetScriptTemplate: chartScript
                 };
             } catch (e) { console.error('[Weather] Open-Meteo error:', e); return null; }
         }
@@ -3972,14 +4033,86 @@ Sunrise: ${fmtTime(sunrise)} | Sunset: ${fmtTime(sunset)}${hourlyForecast}${week
                                 </div>
                                 <div class="dc-stat">
                                     <span class="dc-stat-icon">${sIcons.exchange}</span>
+                                </div>
+                                <div class="dc-stat">
+                                    <span class="dc-stat-icon">${sIcons.exchange}</span>
                                     <span>Exchange: <span class="dc-stat-val">${meta.exchangeName || 'N/A'}</span></span>
                                 </div>
                             </div>
-                            <div class="data-card-source">
+                            <div style="position: relative; height: 150px; width: 100%; margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 15px;">
+                                <canvas id="stockChart-%%ID%%"></canvas>
+                            </div>
+                            <div class="data-card-source" style="margin-top: 5px;">
                                 Data provided by <a href="https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}" target="_blank">Yahoo Finance</a>
                             </div>
                         </div>
                     `;
+
+                    // Generate stock chart script
+                    let chartScript = '';
+                    const chartIndicators = data?.chart?.result?.[0]?.indicators?.quote?.[0];
+                    const chartTimestamps = data?.chart?.result?.[0]?.timestamp;
+
+                    if (chartIndicators && chartTimestamps && chartIndicators.close && chartIndicators.close.length > 0) {
+                        const prices = chartIndicators.close;
+                        const times = chartTimestamps;
+
+                        // Filter out nulls
+                        const cleanData = [];
+                        const cleanLabels = [];
+                        for (let i = 0; i < prices.length; i++) {
+                            if (prices[i] !== null) {
+                                cleanData.push(prices[i]);
+                                cleanLabels.push(new Date(times[i] * 1000).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }));
+                            }
+                        }
+
+                        if (cleanData.length > 0) {
+                            const lineColor = change >= 0 ? '#34d399' : '#f87171';
+
+                            chartScript = `
+                                (function() {
+                                    const id = 'stockChart-%%ID%%';
+                                    const ctx = document.getElementById(id);
+                                    if (!ctx) return;
+                                    
+                                    const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 150);
+                                    const rgbColor = '${change >= 0 ? '52, 211, 153' : '248, 113, 113'}';
+                                    gradient.addColorStop(0, \`rgba(\${rgbColor}, 0.3)\`);
+                                    gradient.addColorStop(1, \`rgba(\${rgbColor}, 0.02)\`);
+
+                                    new Chart(ctx, {
+                                        type: 'line',
+                                        data: {
+                                            labels: ${JSON.stringify(cleanLabels)},
+                                            datasets: [{
+                                                label: 'Price (USD)',
+                                                data: ${JSON.stringify(cleanData)},
+                                                borderColor: '${lineColor}',
+                                                borderWidth: 2,
+                                                tension: 0.1,
+                                                fill: true,
+                                                backgroundColor: gradient,
+                                                pointRadius: 0,
+                                                pointHoverRadius: 4,
+                                                pointBackgroundColor: '${lineColor}'
+                                            }]
+                                        },
+                                        options: {
+                                            responsive: true,
+                                            maintainAspectRatio: false,
+                                            plugins: { legend: { display: false } },
+                                            scales: {
+                                                x: { display: false },
+                                                y: { display: false, min: Math.min(...${JSON.stringify(cleanData)}) * 0.999 }
+                                            },
+                                            interaction: { mode: 'index', intersect: false }
+                                        }
+                                    });
+                                })();
+                            `;
+                        }
+                    }
 
                     console.log(`[Stocks] Yahoo Finance: ${symbol} = $${price.toFixed(2)}`);
                     return {
@@ -3988,7 +4121,8 @@ Sunrise: ${fmtTime(sunrise)} | Sunset: ${fmtTime(sunset)}${hourlyForecast}${week
                         snippet: `LIVE STOCK DATA as of ${marketTime}: Price: $${price.toFixed(2)} | Day change: ${sign}$${change.toFixed(2)} (${sign}${changePct.toFixed(2)}%) | Previous close: $${(prevClose || 0).toFixed(2)} | Currency: ${meta.currency || 'USD'} | Exchange: ${meta.exchangeName || 'N/A'}`,
                         _source: 'Stocks (Yahoo Finance)',
                         _domain: 'finance.yahoo.com',
-                        _widgetHtml: widgetHtml
+                        _widgetHtml: widgetHtml,
+                        _widgetScriptTemplate: chartScript
                     };
                 } catch { return null; }
             });
@@ -4071,11 +4205,79 @@ Sunrise: ${fmtTime(sunrise)} | Sunset: ${fmtTime(sunset)}${hourlyForecast}${week
                                         <span>Prev Close: <span class="dc-stat-val">${(prevClose || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></span>
                                     </div>
                                 </div>
-                                <div class="data-card-source">
+                                </div>
+                                <div style="position: relative; height: 150px; width: 100%; margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 15px;">
+                                    <canvas id="stockChart-%%ID%%"></canvas>
+                                </div>
+                                <div class="data-card-source" style="margin-top: 5px;">
                                     Data provided by <a href="https://finance.yahoo.com/quote/${encodeURIComponent(sym)}" target="_blank">Yahoo Finance</a>
                                 </div>
                             </div>
                         `;
+
+                        let chartScript = '';
+                        const chartIndicators = data?.chart?.result?.[0]?.indicators?.quote?.[0];
+                        const chartTimestamps = data?.chart?.result?.[0]?.timestamp;
+
+                        if (chartIndicators && chartTimestamps && chartIndicators.close && chartIndicators.close.length > 0) {
+                            const prices = chartIndicators.close;
+                            const times = chartTimestamps;
+
+                            const cleanData = [];
+                            const cleanLabels = [];
+                            for (let i = 0; i < prices.length; i++) {
+                                if (prices[i] !== null) {
+                                    cleanData.push(prices[i]);
+                                    cleanLabels.push(new Date(times[i] * 1000).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }));
+                                }
+                            }
+
+                            if (cleanData.length > 0) {
+                                const lineColor = change >= 0 ? '#34d399' : '#f87171';
+
+                                chartScript = `
+                                    (function() {
+                                        const id = 'stockChart-%%ID%%';
+                                        const ctx = document.getElementById(id);
+                                        if (!ctx) return;
+                                        
+                                        const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 150);
+                                        const rgbColor = '${change >= 0 ? '52, 211, 153' : '248, 113, 113'}';
+                                        gradient.addColorStop(0, \`rgba(\${rgbColor}, 0.3)\`);
+                                        gradient.addColorStop(1, \`rgba(\${rgbColor}, 0.02)\`);
+
+                                        new Chart(ctx, {
+                                            type: 'line',
+                                            data: {
+                                                labels: ${JSON.stringify(cleanLabels)},
+                                                datasets: [{
+                                                    label: 'Points',
+                                                    data: ${JSON.stringify(cleanData)},
+                                                    borderColor: '${lineColor}',
+                                                    borderWidth: 2,
+                                                    tension: 0.1,
+                                                    fill: true,
+                                                    backgroundColor: gradient,
+                                                    pointRadius: 0,
+                                                    pointHoverRadius: 4,
+                                                    pointBackgroundColor: '${lineColor}'
+                                                }]
+                                            },
+                                            options: {
+                                                responsive: true,
+                                                maintainAspectRatio: false,
+                                                plugins: { legend: { display: false } },
+                                                scales: {
+                                                    x: { display: false },
+                                                    y: { display: false, min: Math.min(...${JSON.stringify(cleanData)}) * 0.999 }
+                                                },
+                                                interaction: { mode: 'index', intersect: false }
+                                            }
+                                        });
+                                    })();
+                                `;
+                            }
+                        }
 
                         return {
                             title: `${change >= 0 ? '📈' : '📉'} ${indexNames[sym] || sym}: ${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
@@ -4083,7 +4285,8 @@ Sunrise: ${fmtTime(sunrise)} | Sunset: ${fmtTime(sunset)}${hourlyForecast}${week
                             snippet: `LIVE INDEX DATA: ${sign}${change.toFixed(2)} (${sign}${changePct.toFixed(2)}%)`,
                             _source: 'Stocks (Yahoo Finance)',
                             _domain: 'finance.yahoo.com',
-                            _widgetHtml: widgetHtml
+                            _widgetHtml: widgetHtml,
+                            _widgetScriptTemplate: chartScript
                         };
                     } catch { return null; }
                 });
@@ -5650,10 +5853,10 @@ Sunrise: ${fmtTime(sunrise)} | Sunset: ${fmtTime(sunset)}${hourlyForecast}${week
                 track('Semantic Scholar', getSemanticScholarResults(apiQuery));
             }
 
-            // ─── Wait for ALL sources (generous 20s timeout) ─────────
+            // ─── Wait for ALL sources (aggressive 12s timeout for speed) ─────────
             await Promise.race([
                 Promise.allSettled(promises),
-                new Promise(resolve => setTimeout(resolve, 20000))
+                new Promise(resolve => setTimeout(resolve, 12000))
             ]);
 
             // ─── Log results ─────────────────────────────────────────
@@ -7100,7 +7303,10 @@ Sunrise: ${fmtTime(sunrise)} | Sunset: ${fmtTime(sunset)}${hourlyForecast}${week
 
                         // ── PHASE 2: Read actual web pages (ChatGPT-level browsing) ──
                         if (webSearchResults && webSearchResults.length > 0) {
-                            webSearchResults = await enrichResultsWithPageContent(webSearchResults, 3);
+                            // Aggressively read up to 20 pages for news/current-events, else 5
+                            const isNews = /\b(latest|news|today|yesterday|this week|this month|recently|current|breaking|happening|2025|2026|right now|update)\b/i.test(searchQuery);
+                            const pagesToRead = isNews ? 20 : 5;
+                            webSearchResults = await enrichResultsWithPageContent(webSearchResults, pagesToRead);
                         }
                     } else {
                         console.log('[Search] Skipped search — query too vague or trivial');
@@ -7149,9 +7355,9 @@ Sunrise: ${fmtTime(sunrise)} | Sunset: ${fmtTime(sunset)}${hourlyForecast}${week
                 }
             }
 
-            // Append Math/KaTeX formatting instruction
-            const katexInstruction = "CRITICAL RULE: DO NOT use, mention, or create any mathematics, equations, or formulas unless the user's prompt is explicitly about math or science. Never use math for analogies or casual conversation. ONLY if the user's prompt requires a mathematical answer, format your equations strictly using KaTeX markdown (`$$` for block, `\\(` and `\\)` for inline) without announcing it.";
-            sysContent += (sysContent ? '\n\n' : '') + katexInstruction;
+            // Append gentle math formatting instruction
+            const gentleMathInstruction = "If the user specifically asks a mathematical question, use standard LaTeX/KaTeX delimiters for equations (`$$` for display, `\\(` and `\\)` for inline). Do not mention that you are using KaTeX, and do not apologize or comment on your formatting.";
+            sysContent += (sysContent ? '\n\n' : '') + gentleMathInstruction;
 
             // Inject web search results with synthesized answer instructions
             if (webSearchResults && webSearchResults.length > 0) {
@@ -7693,8 +7899,21 @@ ANSWER RULES:
                 if (webSearchResults) {
                     const widgetData = webSearchResults.find(r => r._widgetHtml);
                     if (widgetData) {
+                        // Generate unique ID for charts to prevent DOM collisions in chat history
+                        const uniqueId = Date.now() + '-' + Math.floor(Math.random() * 100000);
+                        const finalHtml = widgetData._widgetHtml.replace(/%%ID%%/g, uniqueId);
+
                         // Append the widget HTML directly to the rendered DOM
-                        streamContent.insertAdjacentHTML('beforeend', widgetData._widgetHtml);
+                        streamContent.insertAdjacentHTML('beforeend', finalHtml);
+
+                        // Execute the widget script (e.g., to render Chart.js instances)
+                        if (widgetData._widgetScriptTemplate) {
+                            const finalScript = widgetData._widgetScriptTemplate.replace(/%%ID%%/g, uniqueId);
+                            const scriptEl = document.createElement('script');
+                            scriptEl.textContent = finalScript;
+                            document.body.appendChild(scriptEl);
+                        }
+
                         // Make sure we scroll to see the widget
                         scrollToBottom();
                     }
@@ -7703,7 +7922,18 @@ ANSWER RULES:
 
             // ── Finalise ──────────────────────────────────────────────────────────
             if (aiResponse) {
-                currentChat.messages.push({ role: 'assistant', content: aiResponse });
+                const messageObj = { role: 'assistant', content: aiResponse };
+
+                // If there's a widget on this response, save it to history too
+                if (webSearchResults) {
+                    const widgetData = webSearchResults.find(r => r._widgetHtml);
+                    if (widgetData) {
+                        messageObj._widgetHtml = widgetData._widgetHtml;
+                        messageObj._widgetScriptTemplate = widgetData._widgetScriptTemplate;
+                    }
+                }
+
+                currentChat.messages.push(messageObj);
                 if (currentChatId !== generatedChatId) {
                     currentChat.hasUnread = true;
                 }
@@ -7724,7 +7954,7 @@ ANSWER RULES:
             }
         }
 
-        async function appendMessage(role, content, typeOut = false, chatId = null, attachments = null) {
+        async function appendMessage(role, content, typeOut = false, chatId = null, attachments = null, widgetObj = null) {
             const msgDiv = document.createElement('div');
             msgDiv.dataset.role = role;
             msgDiv.className = 'w-full py-4 text-gpt-text flex flex-col group mx-auto max-w-3xl px-4 md:px-5';
@@ -7791,6 +8021,21 @@ ANSWER RULES:
 
             // typeOut is kept for backward-compat (loading old history) but no longer used for live generation
             renderMarkdownAndMath(contentContainer, content);
+
+            // Rehydrate saved widgets
+            if (widgetObj && widgetObj._widgetHtml) {
+                const uniqueId = Date.now() + '-' + Math.floor(Math.random() * 100000);
+                const finalHtml = widgetObj._widgetHtml.replace(/%%ID%%/g, uniqueId);
+                contentContainer.insertAdjacentHTML('beforeend', finalHtml);
+
+                if (widgetObj._widgetScriptTemplate) {
+                    const finalScript = widgetObj._widgetScriptTemplate.replace(/%%ID%%/g, uniqueId);
+                    const scriptEl = document.createElement('script');
+                    scriptEl.textContent = finalScript;
+                    document.body.appendChild(scriptEl);
+                }
+            }
+
             scrollToBottom(true);
         }
 
@@ -7872,7 +8117,10 @@ ANSWER RULES:
 
             // Load messages
             if (chat && chat.messages) {
-                chat.messages.forEach(m => appendMessage(m.role, m.content));
+                chat.messages.forEach(m => {
+                    const widgetObj = m._widgetHtml ? { _widgetHtml: m._widgetHtml, _widgetScriptTemplate: m._widgetScriptTemplate } : null;
+                    appendMessage(m.role, m.content, false, id, m.attachments || null, widgetObj);
+                });
             }
             if (generatingChats[id] && generatingChats[id].div) {
                 document.getElementById('chat-messages').appendChild(generatingChats[id].div);
