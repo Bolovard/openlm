@@ -3986,21 +3986,15 @@ Sunrise: ${fmtTime(sunrise)} | Sunset: ${fmtTime(sunset)}${hourlyForecast}${week
             const yahooFetches = symbolArr.map(async (symbol) => {
                 try {
                     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
-                    // Try direct first, then CORS proxy
+                    // Try direct first, then cycle through CORS proxies
                     let data = null;
-                    for (const attempt of [
-                        () => fetch(url, { signal: AbortSignal.timeout(4000) }),
-                        () => fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(5000) }),
-                        () => fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(5000) }),
-                    ]) {
-                        try {
-                            const res = await attempt();
-                            if (res.ok) {
-                                data = await res.json();
-                                break;
-                            }
-                        } catch { continue; }
-                    }
+                    try {
+                        const res = await fetchWithProxyFallback(url, {}, 5000, true); // true = attempt direct first
+                        if (res && res.ok) {
+                            data = await res.json();
+                        }
+                    } catch { /* Fall through to null */ }
+
                     if (!data) return null;
                     const meta = data?.chart?.result?.[0]?.meta;
                     if (!meta || !meta.regularMarketPrice) return null;
@@ -4730,30 +4724,56 @@ Sunrise: ${fmtTime(sunrise)} | Sunset: ${fmtTime(sunset)}${hourlyForecast}${week
             url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
             url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
             url => `https://thingproxy.freeboard.io/fetch/${url}`,
+            url => `https://api.cors.lol/?url=${encodeURIComponent(url)}` // Extra backup
         ];
 
-        // Fetch raw HTML from a URL via CORS proxy
+        // ── Universal Proxy Fetcher ──────────────────────────────────────
+        // Attempts to fetch a URL. If tryDirectFirst is true, it tries the native
+        // URL first. If that fails (or tryDirectFirst is false), it iterates through
+        // the CORS_PROXIES array until one succeeds.
+        async function fetchWithProxyFallback(originalUrl, options = {}, timeoutMs = 5000, tryDirectFirst = false) {
+            const controller = new AbortController();
+            const fetchOpts = { ...options, signal: controller.signal };
+
+            if (tryDirectFirst) {
+                try {
+                    const timer = setTimeout(() => controller.abort(), timeoutMs);
+                    const res = await fetch(originalUrl, fetchOpts);
+                    clearTimeout(timer);
+                    if (res.ok) return res;
+                } catch { /* Direct failed, move to proxies */ }
+            }
+
+            for (const makeProxy of CORS_PROXIES) {
+                try {
+                    const proxyController = new AbortController();
+                    const proxyOpts = { ...options, signal: proxyController.signal };
+                    const timer = setTimeout(() => proxyController.abort(), timeoutMs);
+                    const res = await fetch(makeProxy(originalUrl), proxyOpts);
+                    clearTimeout(timer);
+                    if (res.ok) return res;
+                } catch { continue; }
+            }
+            throw new Error('All proxy attempts failed for: ' + originalUrl);
+        }
+
+        // Fetch raw HTML from a URL via CORS proxy (for page enrichment)
         async function fetchPageViaProxy(url, timeoutMs = 6000) {
             // Skip non-http URLs, PDFs, images, etc.
             if (!/^https?:\/\//i.test(url)) return null;
             if (/\.(pdf|jpg|jpeg|png|gif|svg|mp4|mp3|zip|tar|gz|exe|dmg)(\?|$)/i.test(url)) return null;
 
-            for (const makeProxy of CORS_PROXIES) {
-                try {
-                    const controller = new AbortController();
-                    const timer = setTimeout(() => controller.abort(), timeoutMs);
-                    const res = await fetch(makeProxy(url), {
-                        signal: controller.signal,
-                        headers: { 'Accept': 'text/html,application/xhtml+xml,text/plain' }
-                    });
-                    clearTimeout(timer);
-                    if (!res.ok) continue;
-                    const contentType = res.headers.get('content-type') || '';
-                    if (contentType.includes('application/pdf') || contentType.includes('image/')) continue;
-                    const html = await res.text();
-                    if (html && html.length > 200) return html;
-                } catch { continue; }
-            }
+            try {
+                const res = await fetchWithProxyFallback(url, {
+                    headers: { 'Accept': 'text/html,application/xhtml+xml,text/plain' }
+                }, timeoutMs, false); // false = web pages always need proxy due to rigid CORS
+
+                const contentType = res.headers.get('content-type') || '';
+                if (contentType.includes('application/pdf') || contentType.includes('image/')) return null;
+                const html = await res.text();
+                if (html && html.length > 200) return html;
+            } catch { return null; }
+
             return null;
         }
 
@@ -4842,7 +4862,13 @@ Sunrise: ${fmtTime(sunrise)} | Sunset: ${fmtTime(sunset)}${hourlyForecast}${week
                 try {
                     const html = await fetchPageViaProxy(result.url, 5000);
                     if (!html) return;
-                    const text = extractTextFromHTML(html, 1500);
+
+                    // Extract up to 2000 characters of text from each scraped page.
+                    // This creates a large, high-density reservoir of text. The final payload formatter
+                    // will dynamically chunk and truncate this reservoir down to fit the exact context 
+                    // token limit of the active AI model before transmission.
+                    const text = extractTextFromHTML(html, 2000);
+
                     if (text && text.length > result.snippet.length) {
                         const oldLen = result.snippet.length;
                         result.snippet = text;
@@ -7389,43 +7415,109 @@ ANSWER RULES:
 5. NEVER claim you lack current information — the search results ARE current.
 6. End with a brief "Sources" section listing 3-5 important references as markdown links.`;
 
-                // CRITICAL FIX: Ollama models have hardcoded context caps (4096-8192 tokens typical).
-                // Prioritize structured API data (weather, stocks, etc.) at the top, then add web results.
+                let maxContextTokens = 2048; // Baseline legacy fallback
+
+                // CRITICAL FIX: Dynamically detect Ollama context size limit to optimally chunk and pack data
                 if (activeEndpoint.type === 'ollama') {
+                    try {
+                        const showRes = await fetch(`${activeEndpoint.url}/api/show`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name: activeEndpoint.model })
+                        });
+                        if (showRes.ok) {
+                            const showData = await showRes.json();
+                            // Attempt to parse num_ctx from model_info or parameters. Defaults to 8192 on modern models (Llama 3, Mistral) if omitted, 2048 on old.
+                            if (showData.model_info && showData.model_info['ollama.context_length']) {
+                                maxContextTokens = parseInt(showData.model_info['ollama.context_length']);
+                            } else if (showData.parameters && showData.parameters.includes('num_ctx')) {
+                                const match = showData.parameters.match(/num_ctx\s+(\d+)/);
+                                if (match) maxContextTokens = parseInt(match[1]);
+                                else maxContextTokens = 2048; // Safe fallback for unlisted legacy models
+                            } else {
+                                maxContextTokens = 2048; // Safe fallback
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Could not fetch Ollama model context length, defaulting to safe constraints.', e);
+                    }
+
+                    // STRICT UNIFIED BUGDETING:
+                    // Different model architectures use different tokenizers. 
+                    // Gemma interprets special characters and HTML (dense in search results) individually, eating tokens faster 
+                    // than Llama/Mistral piece-wise tokenizers.
+                    const isGemmaTokenRatio = activeEndpoint.model.toLowerCase().includes('gemma');
+                    const charsPerToken = isGemmaTokenRatio ? 1.5 : 2.2; // Gemma gets a harsher penalty
+                    let masterCharBudget = Math.floor(maxContextTokens * charsPerToken);
+
+                    // 1. Reserve 25% of the TOTAL context window dynamically for the AI to write its response.
+                    let reservedGenerationChars = Math.floor(masterCharBudget * 0.25);
+
+                    // 2. The remaining budget is all we have left to pack the prompt.
+                    let remainingBudget = masterCharBudget - reservedGenerationChars;
+
+                    // 3. Deduct the mandatory base system prompt and the user's immediate input.
+                    // (We assume 'sc' header length safely within the padding).
+                    remainingBudget -= (sysContent.length + modelInputText.length);
+
                     const apiSources = ['Weather (Open-Meteo)', 'Stocks (Yahoo Finance)', 'Stocks (Google Finance)', 'Crypto (CoinGecko)', 'Currency (Frankfurter)', 'DateTime'];
                     const apiResults = webSearchResults.filter(r => apiSources.includes(r._source));
                     const webResults = webSearchResults.filter(r => !apiSources.includes(r._source));
 
-                    const maxWebResults = Math.max(3, 8 - apiResults.length);
-                    const maxSnippetLen = 300;
+                    // 4. Reserve exactly 40% of the *remaining* space strictly for Search, and leave the rest for History.
+                    let searchBudgetChars = Math.floor(remainingBudget * 0.40);
+                    // Ensure History gets the other 60%, but track it logically later if search doesn't use it all.
+                    let historyBudgetPool = remainingBudget - searchBudgetChars;
 
                     let truncatedSc = `═══ SEARCH RESULTS ═══\nRetrieved: ${new Date().toLocaleString()}\n\n`;
 
-                    // API data goes first — FULL snippets, marked as authoritative
+                    // Pack API data first — it's dense and authoritative
+                    let apiCharsUsed = 0;
                     if (apiResults.length > 0) {
-                        truncatedSc += `▶ AUTHORITATIVE LIVE DATA (use these numbers directly):\n\n`;
-                        apiResults.forEach((r, i) => {
-                            truncatedSc += `★ "${r.title}"\nURL: ${r.url || 'N/A'}\nDATA: ${r.snippet}\n\n`;
+                        truncatedSc += `▶ AUTHORITATIVE LIVE DATA:\n\n`;
+                        apiResults.forEach((r) => {
+                            const chunk = `★ "${r.title}"\nURL: ${r.url || 'N/A'}\nDATA: ${r.snippet}\n\n`;
+                            truncatedSc += chunk;
+                            apiCharsUsed += chunk.length;
                         });
                     }
 
-                    // Web results with truncated snippets
-                    if (webResults.length > 0) {
+                    // Calculate remaining budget exclusively for web text
+                    let webBudgetChars = searchBudgetChars - apiCharsUsed;
+
+                    // If API used too much, steal a bit from History to prevent starving web sources
+                    if (webBudgetChars < 500 && historyBudgetPool > 1000) {
+                        const steal = 1000;
+                        historyBudgetPool -= steal;
+                        webBudgetChars += steal;
+                    }
+
+                    // Web results are chunked dynamically to absolutely fill their exact slice of the budget pie
+                    if (webResults.length > 0 && webBudgetChars > 400) {
                         truncatedSc += `▶ WEB SOURCES:\n\n`;
-                        webResults.slice(0, maxWebResults).forEach((r, i) => {
-                            const snippet = (r.snippet || '').substring(0, maxSnippetLen);
-                            truncatedSc += `"${r.title}"\nURL: ${r.url || 'N/A'}\n${snippet}\n\n`;
+
+                        // How many pieces of the pie? Cap at 25 sources max to avoid tiny fragments.
+                        const maxWebResults = Math.min(webResults.length, 25);
+
+                        // How big is each slice?
+                        const maxSnippetLen = Math.max(150, Math.floor(webBudgetChars / maxWebResults));
+
+                        webResults.slice(0, maxWebResults).forEach((r) => {
+                            // Slice the text STRICTLY to fit our mathematical budget
+                            const snippet = (r.snippet || '').substring(0, maxSnippetLen).trim();
+                            truncatedSc += `"${r.title}"\nURL: ${r.url || 'N/A'}\n${snippet}...\n\n`;
                         });
                     }
 
-                    // If a widget is present (weather, stocks), tell the model to just give a brief summary
                     const hasWidget = webSearchResults.some(r => r._widgetHtml);
                     let widgetInstruction = '';
                     if (hasWidget) {
-                        widgetInstruction = `\n\n[USER INSTRUCTION]: A detailed visual widget containing this data is ALREADY being displayed to the user below your text. Do NOT regurgitate all the numbers. Just provide a brief, conversational 1-2 sentence summary (e.g., "It's currently 56°F and partly cloudy in Aurora today.")`;
+                        widgetInstruction = `\n\n[USER INSTRUCTION]: A detailed visual widget containing this data is ALREADY being displayed to the user below your text. Do NOT regurgitate all the numbers. Just provide a brief, conversational 1-2 sentence summary.`;
                     }
 
-                    truncatedSc += `RULES:\n1. Use EXACT numbers from the AUTHORITATIVE LIVE DATA section.\n2. Cite sources as markdown links: [Title](url).\n3. NEVER use [1], [2], [Source 1] or any bracketed number.\n4. NEVER say "I don't have real-time data".\n5. Present the data confidently and directly.${widgetInstruction}`;
+                    truncatedSc += `RULES:\n1. Use EXACT numbers from the AUTHORITATIVE LIVE DATA section.\n2. Cite sources as markdown links: [Title](url).\n3. NEVER use [1], [2], [Source 1] or any bracketed number.\n4. NEVER say "I don't have real-time data".${widgetInstruction}`;
+
+                    // OVERRIDE the main prompt string with our dynamically chunked version
                     sc = truncatedSc;
                 }
 
@@ -7449,9 +7541,9 @@ ANSWER RULES:
                 modelNameLower.includes('gemini') || modelNameLower.includes('gemma') || endpointUrlLower.includes('generativelanguage.googleapis.com')
             );
 
-            // FINAL SAFETY: Hard-cap the entire sysContent for Ollama to prevent context overflow
-            if (activeEndpoint.type === 'ollama' && sysContent.length > 8000) {
-                sysContent = sysContent.substring(0, 8000) + '\n\n[System prompt truncated for local model context limits]';
+            // FINAL SAFETY: If dynamic sizing failed somehow, hard-cap the system instructions to an absolute 30k char maximum.
+            if (activeEndpoint.type === 'ollama' && sysContent.length > 30000) {
+                sysContent = sysContent.substring(0, 30000) + '...';
             }
 
             if (sysContent && !isGoogleModel) {
@@ -7461,8 +7553,47 @@ ANSWER RULES:
             // Add all prior messages (everything except the latest user message we just pushed)
             if (currentChat && currentChat.messages.length > 1) {
                 const priorMessages = currentChat.messages.slice(0, -1);
-                for (const msg of priorMessages) {
-                    conversationHistory.push({ role: msg.role, content: msg.content });
+
+                // CRITICAL FIX: To prevent Ollama from blowing out its context window on long conversations, 
+                // we calculate remaining history budget dynamically based on the known token geometry.
+                if (activeEndpoint.type === 'ollama') {
+                    // Match scoping variables inside this block securely:
+                    let historyBudget = 4000;
+
+                    if (typeof maxContextTokens !== 'undefined') {
+                        // If Search was injected, use the exact mathematical pool we calculated left over from it
+                        if (webSearchEnabled && typeof historyBudgetPool !== 'undefined') {
+                            historyBudget = historyBudgetPool;
+                        } else {
+                            // If no search happened, we calculate a fresh budget:
+                            const isGemmaTokenRatio = activeEndpoint.model.toLowerCase().includes('gemma');
+                            const charsPerToken = isGemmaTokenRatio ? 1.8 : 2.2;
+                            const tMaster = Math.floor(maxContextTokens * charsPerToken);
+                            // 75% for prompt (History/System) -- 25% strictly reserved for Response Generation
+                            historyBudget = Math.floor(tMaster * 0.75) - (sysContent.length + modelInputText.length);
+                        }
+                    }
+
+                    // Enforce an absolute floor just in case math got weird
+                    historyBudget = Math.max(100, historyBudget);
+
+                    const filteredHistory = [];
+                    for (let i = priorMessages.length - 1; i >= 0; i--) {
+                        const msg = priorMessages[i];
+                        const msgLen = (msg.content || '').length;
+                        if (historyBudget - msgLen > 0) {
+                            filteredHistory.unshift({ role: msg.role, content: msg.content });
+                            historyBudget -= msgLen;
+                        } else {
+                            break; // Out of budget, discard older messages
+                        }
+                    }
+                    conversationHistory.push(...filteredHistory);
+                } else {
+                    // For massive context models (Gemini 1.5, GPT-4, Claude), pass full history
+                    for (const msg of priorMessages) {
+                        conversationHistory.push({ role: msg.role, content: msg.content });
+                    }
                 }
             }
 
@@ -7769,9 +7900,15 @@ ANSWER RULES:
                         return { role: m.role, content };
                     });
 
-                    // Dynamically calculate required context window to prevent HTTP 400 errors with large web search results
-                    const approxTokens = Math.ceil(JSON.stringify(ollamaMsgs).length / 3.5);
-                    const ctxSize = Math.max(2048, Math.min(32768, approxTokens + 1024)); // Minimum 2k, Maximum 32k, pad by 1k for response
+                    // Dynamically set the context window to match the exact mathematical bounds 
+                    // we negotiated at the top of the function. We CANNOT exceed maxContextTokens, 
+                    // otherwise Ollama throws an HTTP 400 error.
+                    let ctxSize = typeof maxContextTokens !== 'undefined' ? maxContextTokens : 2048;
+                    const approxTokens = Math.ceil(JSON.stringify(ollamaMsgs).length / 2.5);
+
+                    // We ask for either the approximate tokens we need (plus padding), OR the physical limit
+                    // of the model, whichever is mathematically smaller to prevent an overrun request.
+                    ctxSize = Math.min(ctxSize, approxTokens + 1024);
 
                     const ollamaBody = {
                         model: activeEndpoint.model,
