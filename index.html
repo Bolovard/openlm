@@ -2485,6 +2485,164 @@
             }
         }
 
+        /* ── Weather / Data Card Widget ─────────────────────────────── */
+        .data-card-widget {
+            border-radius: 16px;
+            overflow: hidden;
+            margin: 8px 0 12px 0;
+            max-width: 560px;
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: linear-gradient(135deg, #1a1f2e 0%, #252b3b 100%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .data-card-header {
+            padding: 20px 24px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .data-card-header .dc-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .data-card-header .dc-icon {
+            font-size: 48px;
+            line-height: 1;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        }
+
+        .data-card-header .dc-temp {
+            font-size: 52px;
+            font-weight: 300;
+            color: #e2e8f0;
+            line-height: 1;
+            letter-spacing: -2px;
+        }
+
+        .data-card-header .dc-temp .dc-unit-toggle {
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.4);
+            margin-left: 4px;
+            font-weight: 400;
+            letter-spacing: 0;
+        }
+
+        .data-card-header .dc-right {
+            text-align: right;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .data-card-header .dc-right .dc-location {
+            font-size: 15px;
+            font-weight: 500;
+            color: #e2e8f0;
+            margin-bottom: 2px;
+        }
+
+        .data-card-header .dc-right .dc-condition {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .data-card-header .dc-right .dc-day {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .data-card-stats {
+            display: flex;
+            gap: 0;
+            padding: 0 24px 16px;
+        }
+
+        .data-card-stats .dc-stat {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .data-card-stats .dc-stat-icon {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .data-card-stats .dc-stat-val {
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        .data-card-forecast {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            background: rgba(0, 0, 0, 0.15);
+        }
+
+        .data-card-forecast .dc-day-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px 4px 14px;
+            gap: 6px;
+            border-right: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .data-card-forecast .dc-day-col:last-child {
+            border-right: none;
+        }
+
+        .data-card-forecast .dc-day-name {
+            font-size: 11px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .data-card-forecast .dc-day-col:first-child .dc-day-name {
+            color: #60a5fa;
+        }
+
+        .data-card-forecast .dc-day-icon {
+            font-size: 22px;
+        }
+
+        .data-card-forecast .dc-day-temps {
+            text-align: center;
+        }
+
+        .data-card-forecast .dc-day-hi {
+            font-size: 13px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .data-card-forecast .dc-day-lo {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.35);
+        }
+
+        .data-card-source {
+            padding: 8px 24px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.3);
+            text-align: right;
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .data-card-source a {
+            color: rgba(100, 160, 255, 0.6);
+            text-decoration: none;
+        }
+
         /* ── Autocomplete Dropdown ──────────────────────────────────── */
         .autocomplete-dropdown {
             position: absolute;
@@ -3385,21 +3543,49 @@
         }
 
         async function getUserLocation() {
-            if (!navigator.geolocation) return;
-            try {
-                const pos = await new Promise((ok, fail) =>
-                    navigator.geolocation.getCurrentPosition(ok, fail, { timeout: 8000, maximumAge: 300000 }));
-                const { latitude, longitude } = pos.coords;
-                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=10`,
-                    { headers: { 'Accept': 'application/json' } });
-                if (res.ok) {
-                    const data = await res.json();
-                    const a = data.address || {};
-                    userLocation = { lat: latitude, lon: longitude, city: a.city || a.town || a.village || '', state: a.state || '', country: a.country || '' };
-                } else {
+            // Try browser geolocation first
+            if (navigator.geolocation) {
+                try {
+                    const pos = await new Promise((ok, fail) =>
+                        navigator.geolocation.getCurrentPosition(ok, fail, { timeout: 5000, maximumAge: 300000 }));
+                    const { latitude, longitude } = pos.coords;
+                    try {
+                        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=10`,
+                            { headers: { 'Accept': 'application/json' } });
+                        if (res.ok) {
+                            const data = await res.json();
+                            const a = data.address || {};
+                            userLocation = { lat: latitude, lon: longitude, city: a.city || a.town || a.village || '', state: a.state || '', country: a.country || '' };
+                            console.log(`[Location] Browser geolocation: ${userLocation.city}, ${userLocation.state}`);
+                            return;
+                        }
+                    } catch { /* reverse geocode failed */ }
                     userLocation = { lat: latitude, lon: longitude, city: '', state: '', country: '' };
-                }
-            } catch { /* user denied */ }
+                    return;
+                } catch { /* geolocation denied or unavailable */ }
+            }
+
+            // Fallback: IP-based geolocation (works from file:// origins)
+            const ipServices = [
+                { url: 'https://ipwho.is/', extract: d => d.success !== false ? { lat: d.latitude, lon: d.longitude, city: d.city || '', state: d.region || '', country: d.country || '' } : null },
+                { url: 'https://ipapi.co/json/', extract: d => d.latitude ? { lat: d.latitude, lon: d.longitude, city: d.city || '', state: d.region || '', country: d.country_name || '' } : null },
+                { url: 'http://ip-api.com/json/?fields=lat,lon,city,regionName,country', extract: d => d.lat ? { lat: d.lat, lon: d.lon, city: d.city || '', state: d.regionName || '', country: d.country || '' } : null },
+            ];
+            for (const svc of ipServices) {
+                try {
+                    const res = await fetch(svc.url, { signal: AbortSignal.timeout(4000) });
+                    if (res.ok) {
+                        const data = await res.json();
+                        const loc = svc.extract(data);
+                        if (loc && loc.lat && loc.lon) {
+                            userLocation = loc;
+                            console.log(`[Location] IP geolocation: ${loc.city}, ${loc.state} via ${svc.url}`);
+                            return;
+                        }
+                    }
+                } catch { /* try next */ }
+            }
+            console.warn('[Location] All geolocation methods failed');
         }
 
         // ── Weather via Open-Meteo (free, no key, CORS-enabled) ──────────
@@ -3441,23 +3627,226 @@
                 lon = userLocation.lon;
                 locationName = [userLocation.city, userLocation.state, userLocation.country].filter(Boolean).join(', ');
             }
+            // Fall back to IP-based geolocation if browser location isn't available
+            if (!lat) {
+                const ipServices = [
+                    { url: 'http://ip-api.com/json/?fields=lat,lon,city,regionName,country', extract: d => ({ lat: d.lat, lon: d.lon, name: [d.city, d.regionName, d.country].filter(Boolean).join(', ') }) },
+                    { url: 'https://ipapi.co/json/', extract: d => ({ lat: d.latitude, lon: d.longitude, name: [d.city, d.region, d.country_name].filter(Boolean).join(', ') }) },
+                    { url: 'https://ipwho.is/', extract: d => ({ lat: d.latitude, lon: d.longitude, name: [d.city, d.region, d.country].filter(Boolean).join(', ') }) },
+                ];
+                for (const svc of ipServices) {
+                    try {
+                        const ipRes = await fetch(svc.url, { signal: AbortSignal.timeout(3000) });
+                        if (ipRes.ok) {
+                            const ipData = await ipRes.json();
+                            const geo = svc.extract(ipData);
+                            if (geo.lat && geo.lon) {
+                                lat = geo.lat;
+                                lon = geo.lon;
+                                locationName = geo.name;
+                                console.log(`[Weather] IP geolocation: ${locationName} via ${svc.url}`);
+                                break;
+                            }
+                        }
+                    } catch { /* try next service */ }
+                }
+            }
             if (!lat) return null;
 
             try {
-                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,uv_index&temperature_unit=fahrenheit&wind_speed_unit=mph`);
+                // Comprehensive weather request: current + daily + hourly
+                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+                    `&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,uv_index,surface_pressure,cloud_cover,precipitation,is_day` +
+                    `&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,sunrise,sunset,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,uv_index_max` +
+                    `&hourly=temperature_2m,weather_code,precipitation_probability,wind_speed_10m,cloud_cover` +
+                    `&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch` +
+                    `&timezone=auto&forecast_days=7`;
+                const res = await fetch(weatherUrl);
                 if (!res.ok) return null;
                 const data = await res.json();
                 const c = data.current;
                 if (!c) return null;
                 const desc = WEATHER_CODES[c.weather_code] || 'Unknown';
-                const tempC = ((c.temperature_2m - 32) * 5 / 9).toFixed(1);
-                const feelsC = ((c.apparent_temperature - 32) * 5 / 9).toFixed(1);
-                return {
-                    title: `Current Weather in ${locationName || 'your area'}`,
-                    url: `https://open-meteo.com`,
-                    snippet: `${c.temperature_2m}°F (${tempC}°C), feels like ${c.apparent_temperature}°F (${feelsC}°C). ${desc}. Humidity: ${c.relative_humidity_2m}%, Wind: ${c.wind_speed_10m} mph, UV Index: ${c.uv_index}`
+                const toC = f => ((f - 32) * 5 / 9).toFixed(1);
+                const windDir = (deg) => {
+                    const dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+                    return dirs[Math.round(deg / 22.5) % 16];
                 };
-            } catch { return null; }
+
+                // Daily data for today
+                const d = data.daily;
+                const todayHigh = d?.temperature_2m_max?.[0];
+                const todayLow = d?.temperature_2m_min?.[0];
+                const precipProb = d?.precipitation_probability_max?.[0];
+                const precipSum = d?.precipitation_sum?.[0];
+                const sunrise = d?.sunrise?.[0];
+                const sunset = d?.sunset?.[0];
+                const dailyWindMax = d?.wind_speed_10m_max?.[0];
+                const uvMax = d?.uv_index_max?.[0];
+
+                // Format sunrise/sunset to readable time
+                const fmtTime = (iso) => {
+                    if (!iso) return 'N/A';
+                    try { return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); }
+                    catch { return iso; }
+                };
+
+                // Upcoming 6-hour forecast
+                let hourlyForecast = '';
+                if (data.hourly) {
+                    const now = new Date();
+                    const times = data.hourly.time || [];
+                    const startIdx = times.findIndex(t => new Date(t) >= now);
+                    if (startIdx >= 0) {
+                        const hrs = [];
+                        for (let i = startIdx; i < Math.min(startIdx + 6, times.length); i++) {
+                            const t = new Date(times[i]);
+                            const hr = t.toLocaleTimeString('en-US', { hour: 'numeric' });
+                            const temp = data.hourly.temperature_2m[i];
+                            const code = WEATHER_CODES[data.hourly.weather_code[i]] || '';
+                            const pp = data.hourly.precipitation_probability?.[i];
+                            hrs.push(`${hr}: ${temp}°F ${code}${pp > 0 ? ` (${pp}% rain)` : ''}`);
+                        }
+                        hourlyForecast = `\nHourly Forecast: ${hrs.join(' → ')}`;
+                    }
+                }
+
+                // 7-day forecast
+                let weekForecast = '';
+                if (d && d.time) {
+                    const days = [];
+                    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                    for (let i = 0; i < Math.min(7, d.time.length); i++) {
+                        const dt = new Date(d.time[i] + 'T12:00:00');
+                        const dayName = i === 0 ? 'Today' : dayNames[dt.getDay()];
+                        const hi = d.temperature_2m_max[i];
+                        const lo = d.temperature_2m_min[i];
+                        const code = WEATHER_CODES[d.weather_code[i]] || '';
+                        const pp = d.precipitation_probability_max?.[i];
+                        days.push(`${dayName}: ${hi}°F/${lo}°F ${code}${pp > 0 ? ` (${pp}% precip)` : ''}`);
+                    }
+                    weekForecast = `\n7-Day Forecast: ${days.join(' | ')}`;
+                }
+
+                const snippet = `CURRENT CONDITIONS as of ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}:
+Temperature: ${c.temperature_2m}°F (${toC(c.temperature_2m)}°C) — ${desc}
+Feels Like: ${c.apparent_temperature}°F (${toC(c.apparent_temperature)}°C)
+Today's High: ${todayHigh}°F (${toC(todayHigh)}°C) | Today's Low: ${todayLow}°F (${toC(todayLow)}°C)
+Precipitation: ${precipProb != null ? precipProb + '% chance' : 'N/A'}${precipSum ? ', ' + precipSum + ' in accumulated' : ''}
+Humidity: ${c.relative_humidity_2m}%
+Wind: ${c.wind_speed_10m} mph ${windDir(c.wind_direction_10m)}${c.wind_gusts_10m ? ', gusts ' + c.wind_gusts_10m + ' mph' : ''}
+Cloud Cover: ${c.cloud_cover}%
+Pressure: ${c.surface_pressure ? (c.surface_pressure * 0.02953).toFixed(2) + ' inHg (' + c.surface_pressure.toFixed(0) + ' hPa)' : 'N/A'}
+UV Index: ${c.uv_index}${uvMax ? ' (max today: ' + uvMax + ')' : ''}
+Sunrise: ${fmtTime(sunrise)} | Sunset: ${fmtTime(sunset)}${hourlyForecast}${weekForecast}`;
+
+                // Generate Widget HTML
+                const wIcons = {
+                    sun: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fbbf24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>',
+                    rain: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#60a5fa"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/></svg>',
+                    snow: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#e0f2fe"><path d="m20 17.5-8-4.5-8 4.5"/><path d="m4 6.5 8 4.5 8-4.5"/><path d="M12 22V11"/><path d="m16 9.5-4 2-4-2"/><path d="M12 2v9"/><path d="m8 14.5 4-2 4 2"/></svg>',
+                    storm: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#cbd5e1"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="m13 14-3 5h4l-3 5"/></svg>',
+                    cloud: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#94a3b8"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>',
+                    drop: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#3b82f6"><path d="M12 22a5 5 0 0 0 5-5c0-2-5-9-5-9s-5 7-5 9a5 5 0 0 0 5 5Z"/></svg>',
+                    water: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#0ea5e9"><path d="M12 22a5 5 0 0 0 5-5c0-2-5-9-5-9s-5 7-5 9a5 5 0 0 0 5 5Z"/><path d="M7 14.5c.5-2 1.5-2 2-1s1.5 2 2 1"/></svg>',
+                    wind: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#cbd5e1"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg>',
+                    uv: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fbbf24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>',
+                    sunrise: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#f59e0b"><path d="M12 2v6"/><path d="M12 22v-6"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="M2 12h6"/><path d="M22 12h-6"/><path d="m6.34 17.66 2.83-2.83"/><path d="m14.83 9.17 4.24-4.24"/></svg>',
+                    sunset: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#f97316"><path d="M12 10V2"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/></svg>',
+                    gauge: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#10b981"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>'
+                };
+
+                const wn = String(c.weather_code);
+                const isClear = wn === '0' || wn === '1';
+                const isRain = ['51', '53', '55', '61', '63', '65', '66', '67', '80', '81', '82'].includes(wn);
+                const isSnow = ['71', '73', '75', '77', '85', '86'].includes(wn);
+                const isStorm = ['95', '96', '99'].includes(wn);
+                let mainEmoji = isClear ? wIcons.sun : (isRain ? wIcons.rain : (isSnow ? wIcons.snow : (isStorm ? wIcons.storm : wIcons.cloud)));
+
+                let dayCols = '';
+                if (d && d.time) {
+                    const dn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                    for (let i = 0; i < Math.min(7, d.time.length); i++) {
+                        const dt = new Date(d.time[i] + 'T12:00:00');
+                        const dayName = i === 0 ? 'Today' : dn[dt.getDay()];
+                        const hi = d.temperature_2m_max[i];
+                        const lo = d.temperature_2m_min[i];
+                        const dc = String(d.weather_code[i]);
+                        const de = (dc === '0' || dc === '1') ? wIcons.sun : (['51', '53', '55', '61', '63', '65', '80', '81', '82'].includes(dc) ? wIcons.rain : (['71', '73', '75', '85', '86'].includes(dc) ? wIcons.snow : (['95', '96', '99'].includes(dc) ? wIcons.storm : wIcons.cloud)));
+
+                        dayCols += `
+                            <div class="dc-day-col">
+                                <div class="dc-day-name">${dayName}</div>
+                                <div class="dc-day-icon">${de}</div>
+                                <div class="dc-day-temps">
+                                    <div class="dc-day-hi">${Math.round(hi)}°</div>
+                                    <div class="dc-day-lo">${Math.round(lo)}°</div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+
+                const widgetHtml = `
+                    <div class="data-card-widget">
+                        <div class="data-card-header">
+                            <div class="dc-left">
+                                <div class="dc-icon">${mainEmoji}</div>
+                                <div class="dc-temp">${Math.round(c.temperature_2m)}<span class="dc-unit-toggle">°F</span></div>
+                            </div>
+                            <div class="dc-right">
+                                <div class="dc-location">Weather in ${locationName || 'your area'}</div>
+                                <div class="dc-condition">${desc}</div>
+                                <div class="dc-day">Updated ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
+                            </div>
+                        </div>
+                        <div class="data-card-stats" style="flex-wrap: wrap; gap: 14px 20px;">
+                            <div class="dc-stat">
+                                <span class="dc-stat-icon">${wIcons.drop}</span>
+                                <span>Precip: <span class="dc-stat-val">${precipProb != null ? precipProb + '%' : 'N/A'}</span></span>
+                            </div>
+                            <div class="dc-stat">
+                                <span class="dc-stat-icon">${wIcons.water}</span>
+                                <span>Humidity: <span class="dc-stat-val">${c.relative_humidity_2m}%</span></span>
+                            </div>
+                            <div class="dc-stat">
+                                <span class="dc-stat-icon">${wIcons.wind}</span>
+                                <span>Wind: <span class="dc-stat-val">${Math.round(c.wind_speed_10m)} mph</span></span>
+                            </div>
+                            <div class="dc-stat">
+                                <span class="dc-stat-icon">${wIcons.uv}</span>
+                                <span>UV Index: <span class="dc-stat-val">${c.uv_index || '0'}</span></span>
+                            </div>
+                            <div class="dc-stat">
+                                <span class="dc-stat-icon">${wIcons.sunrise}</span>
+                                <span>Sunrise: <span class="dc-stat-val">${fmtTime(sunrise)}</span></span>
+                            </div>
+                            <div class="dc-stat">
+                                <span class="dc-stat-icon">${wIcons.sunset}</span>
+                                <span>Sunset: <span class="dc-stat-val">${fmtTime(sunset)}</span></span>
+                            </div>
+                            <div class="dc-stat">
+                                <span class="dc-stat-icon">${wIcons.gauge}</span>
+                                <span>Pressure: <span class="dc-stat-val">${c.surface_pressure ? (c.surface_pressure * 0.02953).toFixed(2) + ' inHg' : 'N/A'}</span></span>
+                            </div>
+                        </div>
+                        <div class="data-card-forecast">
+                            ${dayCols}
+                        </div>
+                        <div class="data-card-source">
+                            Data provided by <a href="https://open-meteo.com" target="_blank" rel="noopener noreferrer">open-meteo.com</a>
+                        </div>
+                    </div>
+                `;
+
+                console.log(`[Weather] Open-Meteo returned: ${c.temperature_2m}°F for ${locationName}`);
+                return {
+                    title: `Current Weather in ${locationName || 'your area'} — ${c.temperature_2m}°F ${desc}`,
+                    url: `https://open-meteo.com`,
+                    snippet: snippet,
+                    _widgetHtml: widgetHtml
+                };
+            } catch (e) { console.error('[Weather] Open-Meteo error:', e); return null; }
         }
 
         // ── Stock / Financial data detection ─────────────────────────────
@@ -3495,6 +3884,12 @@
 
         // ── Yahoo Finance v8 chart API (CORS-enabled) ────────────────────
         async function getStockData(queryText) {
+            const sIcons = {
+                up: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-left:4px;"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>',
+                down: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-left:4px;"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>',
+                chart: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#60a5fa"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>',
+                exchange: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#c084fc"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>'
+            };
             const results = [];
             const companyMap = {
                 'apple': 'AAPL', 'microsoft': 'MSFT', 'google': 'GOOGL', 'alphabet': 'GOOGL',
@@ -3552,16 +3947,48 @@
                     const prevClose = meta.chartPreviousClose || meta.previousClose;
                     const change = prevClose ? (price - prevClose) : 0;
                     const changePct = prevClose ? ((change / prevClose) * 100) : 0;
-                    const arrow = change >= 0 ? '📈' : '📉';
+                    const arrow = change >= 0 ? sIcons.up : sIcons.down;
                     const sign = change >= 0 ? '+' : '';
+                    const color = change >= 0 ? '#34d399' : '#f87171';
                     const marketTime = meta.regularMarketTime ? new Date(meta.regularMarketTime * 1000).toLocaleString() : 'N/A';
+
+                    const widgetHtml = `
+                        <div class="data-card-widget">
+                            <div class="data-card-header" style="border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 20px;">
+                                <div class="dc-left" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                                    <div style="font-size: 13px; color: rgba(255,255,255,0.5); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">${meta.exchangeName || 'Market'} • ${meta.symbol || symbol}</div>
+                                    <div style="font-size: 22px; color: #e2e8f0; font-weight: 600; line-height: 1.2;">${meta.shortName || symbol}</div>
+                                    <div style="display: flex; align-items: baseline; gap: 12px; margin-top: 8px;">
+                                        <div style="font-size: 48px; font-weight: 300; color: #fff; letter-spacing: -1.5px;">$${price.toFixed(2)}<span style="font-size:16px; color:rgba(255,255,255,0.4); margin-left:4px; font-weight:400; letter-spacing:0;">${meta.currency || 'USD'}</span></div>
+                                        <div style="font-size: 18px; font-weight: 500; color: ${color};">${sign}$${Math.abs(change).toFixed(2)} (${sign}${Math.abs(changePct).toFixed(2)}%) ${arrow}</div>
+                                    </div>
+                                    <div style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 4px;">Live as of ${marketTime}</div>
+                                </div>
+                            </div>
+                            <div class="data-card-stats" style="padding-top: 16px;">
+                                <div class="dc-stat">
+                                    <span class="dc-stat-icon">${sIcons.chart}</span>
+                                    <span>Prev Close: <span class="dc-stat-val">$${(prevClose || 0).toFixed(2)}</span></span>
+                                </div>
+                                <div class="dc-stat">
+                                    <span class="dc-stat-icon">${sIcons.exchange}</span>
+                                    <span>Exchange: <span class="dc-stat-val">${meta.exchangeName || 'N/A'}</span></span>
+                                </div>
+                            </div>
+                            <div class="data-card-source">
+                                Data provided by <a href="https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}" target="_blank">Yahoo Finance</a>
+                            </div>
+                        </div>
+                    `;
+
                     console.log(`[Stocks] Yahoo Finance: ${symbol} = $${price.toFixed(2)}`);
                     return {
-                        title: `${arrow} ${meta.shortName || symbol} (${meta.symbol || symbol}) — LIVE PRICE: $${price.toFixed(2)}`,
+                        title: `${change >= 0 ? '📈' : '📉'} ${meta.shortName || symbol} (${meta.symbol || symbol}) — LIVE: $${price.toFixed(2)}`,
                         url: `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}`,
                         snippet: `LIVE STOCK DATA as of ${marketTime}: Price: $${price.toFixed(2)} | Day change: ${sign}$${change.toFixed(2)} (${sign}${changePct.toFixed(2)}%) | Previous close: $${(prevClose || 0).toFixed(2)} | Currency: ${meta.currency || 'USD'} | Exchange: ${meta.exchangeName || 'N/A'}`,
                         _source: 'Stocks (Yahoo Finance)',
-                        _domain: 'finance.yahoo.com'
+                        _domain: 'finance.yahoo.com',
+                        _widgetHtml: widgetHtml
                     };
                 } catch { return null; }
             });
@@ -3621,12 +4048,42 @@
                         const change = prevClose ? (price - prevClose) : 0;
                         const changePct = prevClose ? ((change / prevClose) * 100) : 0;
                         const sign = change >= 0 ? '+' : '';
+                        const color = change >= 0 ? '#34d399' : '#f87171';
+                        const arrow = change >= 0 ? sIcons.up : sIcons.down;
+                        const marketTime = meta.regularMarketTime ? new Date(meta.regularMarketTime * 1000).toLocaleString() : 'N/A';
+
+                        const widgetHtml = `
+                            <div class="data-card-widget">
+                                <div class="data-card-header" style="border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 20px;">
+                                    <div class="dc-left" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                                        <div style="font-size: 13px; color: rgba(255,255,255,0.5); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Market Index • ${sym}</div>
+                                        <div style="font-size: 22px; color: #e2e8f0; font-weight: 600; line-height: 1.2;">${indexNames[sym] || sym}</div>
+                                        <div style="display: flex; align-items: baseline; gap: 12px; margin-top: 8px;">
+                                            <div style="font-size: 48px; font-weight: 300; color: #fff; letter-spacing: -1.5px;">${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}<span style="font-size:16px; color:rgba(255,255,255,0.4); margin-left:4px; font-weight:400; letter-spacing:0;">${meta.currency || 'USD'}</span></div>
+                                            <div style="font-size: 18px; font-weight: 500; color: ${color};">${sign}${Math.abs(change).toFixed(2)} (${sign}${Math.abs(changePct).toFixed(2)}%) ${arrow}</div>
+                                        </div>
+                                        <div style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 4px;">Live as of ${marketTime}</div>
+                                    </div>
+                                </div>
+                                <div class="data-card-stats" style="padding-top: 16px;">
+                                    <div class="dc-stat">
+                                        <span class="dc-stat-icon">${sIcons.chart}</span>
+                                        <span>Prev Close: <span class="dc-stat-val">${(prevClose || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></span>
+                                    </div>
+                                </div>
+                                <div class="data-card-source">
+                                    Data provided by <a href="https://finance.yahoo.com/quote/${encodeURIComponent(sym)}" target="_blank">Yahoo Finance</a>
+                                </div>
+                            </div>
+                        `;
+
                         return {
-                            title: `${indexNames[sym] || sym}: ${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                            title: `${change >= 0 ? '📈' : '📉'} ${indexNames[sym] || sym}: ${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
                             url: `https://finance.yahoo.com/quote/${encodeURIComponent(sym)}`,
                             snippet: `LIVE INDEX DATA: ${sign}${change.toFixed(2)} (${sign}${changePct.toFixed(2)}%)`,
                             _source: 'Stocks (Yahoo Finance)',
-                            _domain: 'finance.yahoo.com'
+                            _domain: 'finance.yahoo.com',
+                            _widgetHtml: widgetHtml
                         };
                     } catch { return null; }
                 });
@@ -4138,11 +4595,17 @@
             if (!results || results.length === 0) return results;
 
             // Pick top results with real URLs to read
+            const apiSourcesSkip = ['Weather (Open-Meteo)', 'Stocks (Yahoo Finance)', 'Stocks (Google Finance)', 'Crypto (CoinGecko)', 'Currency (Frankfurter)', 'DateTime'];
             const toRead = results
                 .filter(r => r.url && /^https?:\/\//i.test(r.url))
                 .filter(r => {
                     // Skip Wikipedia (we already have full content from API)
                     try { const h = new URL(r.url).hostname; return !h.includes('wikipedia.org'); } catch { return true; }
+                })
+                .filter(r => {
+                    // Skip structured API results — their snippets contain precise data
+                    // that must NOT be overwritten with homepage/marketing content
+                    return !apiSourcesSkip.includes(r._source);
                 })
                 .slice(0, maxPages);
 
@@ -5641,12 +6104,20 @@
                     srcBoost +
                     phraseBoost
                 );
+
+                // CRITICAL: Structured API results (weather, stocks, crypto, currency, datetime) contain
+                // authoritative live data and must ALWAYS rank above generic web results
+                const apiSources = ['Weather (Open-Meteo)', 'Stocks (Yahoo Finance)', 'Stocks (Google Finance)', 'Crypto (CoinGecko)', 'Currency (Frankfurter)', 'DateTime'];
+                if (apiSources.includes(r._source)) {
+                    r._score += 2.0; // Massive boost to guarantee top ranking
+                }
             });
 
             // ─── 7. FILTER LOW-QUALITY RESULTS ───────────────────────
             const qualityFiltered = operatorFiltered.filter(r => {
-                // Minimum relevance threshold
-                if (r._relevance < 0.02) return false;
+                const isApiResult = ['Weather (Open-Meteo)', 'Stocks (Yahoo Finance)', 'Stocks (Google Finance)', 'Crypto (CoinGecko)', 'Currency (Frankfurter)', 'DateTime'].includes(r._source);
+                // Minimum relevance threshold (exempt API results — they were intentionally queried)
+                if (!isApiResult && r._relevance < 0.02) return false;
                 // Reject empty or missing titles
                 if (!r.title || r.title.trim().length < 3) return false;
                 // Reject thin content (snippets < 40 chars)
@@ -6694,17 +7165,42 @@ ANSWER RULES:
 6. End with a brief "Sources" section listing 3-5 important references as markdown links.`;
 
                 // CRITICAL FIX: Ollama models have hardcoded context caps (4096-8192 tokens typical).
-                // Truncate the search results section aggressively for Ollama to leave room for 
-                // conversation history + user message + model response.
+                // Prioritize structured API data (weather, stocks, etc.) at the top, then add web results.
                 if (activeEndpoint.type === 'ollama') {
-                    const maxResults = 8;
+                    const apiSources = ['Weather (Open-Meteo)', 'Stocks (Yahoo Finance)', 'Stocks (Google Finance)', 'Crypto (CoinGecko)', 'Currency (Frankfurter)', 'DateTime'];
+                    const apiResults = webSearchResults.filter(r => apiSources.includes(r._source));
+                    const webResults = webSearchResults.filter(r => !apiSources.includes(r._source));
+
+                    const maxWebResults = Math.max(3, 8 - apiResults.length);
                     const maxSnippetLen = 300;
-                    let truncatedSc = `═══ WEB SEARCH RESULTS ═══\nRetrieved: ${new Date().toLocaleString()}\n\n`;
-                    webSearchResults.slice(0, maxResults).forEach((r, i) => {
-                        const snippet = (r.snippet || '').substring(0, maxSnippetLen);
-                        truncatedSc += `Source #${i + 1}: "${r.title}"\nURL: ${r.url || 'N/A'}\n${snippet}\n\n`;
-                    });
-                    truncatedSc += `CITATION RULES: You MUST cite sources as markdown links like [Title](url). Example: "The price is $100 according to [Yahoo Finance](https://finance.yahoo.com/quote/X)."\nNEVER use [1], [2], [Source 1] or any bracketed number. ONLY use markdown links.\nUse EXACT numbers for factual data. Never say you lack current info.`;
+
+                    let truncatedSc = `═══ SEARCH RESULTS ═══\nRetrieved: ${new Date().toLocaleString()}\n\n`;
+
+                    // API data goes first — FULL snippets, marked as authoritative
+                    if (apiResults.length > 0) {
+                        truncatedSc += `▶ AUTHORITATIVE LIVE DATA (use these numbers directly):\n\n`;
+                        apiResults.forEach((r, i) => {
+                            truncatedSc += `★ "${r.title}"\nURL: ${r.url || 'N/A'}\nDATA: ${r.snippet}\n\n`;
+                        });
+                    }
+
+                    // Web results with truncated snippets
+                    if (webResults.length > 0) {
+                        truncatedSc += `▶ WEB SOURCES:\n\n`;
+                        webResults.slice(0, maxWebResults).forEach((r, i) => {
+                            const snippet = (r.snippet || '').substring(0, maxSnippetLen);
+                            truncatedSc += `"${r.title}"\nURL: ${r.url || 'N/A'}\n${snippet}\n\n`;
+                        });
+                    }
+
+                    // If a widget is present (weather, stocks), tell the model to just give a brief summary
+                    const hasWidget = webSearchResults.some(r => r._widgetHtml);
+                    let widgetInstruction = '';
+                    if (hasWidget) {
+                        widgetInstruction = `\n\n[USER INSTRUCTION]: A detailed visual widget containing this data is ALREADY being displayed to the user below your text. Do NOT regurgitate all the numbers. Just provide a brief, conversational 1-2 sentence summary (e.g., "It's currently 56°F and partly cloudy in Aurora today.")`;
+                    }
+
+                    truncatedSc += `RULES:\n1. Use EXACT numbers from the AUTHORITATIVE LIVE DATA section.\n2. Cite sources as markdown links: [Title](url).\n3. NEVER use [1], [2], [Source 1] or any bracketed number.\n4. NEVER say "I don't have real-time data".\n5. Present the data confidently and directly.${widgetInstruction}`;
                     sc = truncatedSc;
                 }
 
@@ -7171,7 +7667,20 @@ ANSWER RULES:
             aiResponse = typedText;
 
             // Final render to ensure everything is correctly typeset
-            if (aiResponse) renderMarkdownAndMath(streamContent, aiResponse);
+            if (aiResponse) {
+                renderMarkdownAndMath(streamContent, aiResponse);
+
+                // Inject visual data widget if available
+                if (webSearchResults) {
+                    const widgetData = webSearchResults.find(r => r._widgetHtml);
+                    if (widgetData) {
+                        // Append the widget HTML directly to the rendered DOM
+                        streamContent.insertAdjacentHTML('beforeend', widgetData._widgetHtml);
+                        // Make sure we scroll to see the widget
+                        scrollToBottom();
+                    }
+                }
+            }
 
             // ── Finalise ──────────────────────────────────────────────────────────
             if (aiResponse) {
