@@ -4296,8 +4296,30 @@ Sunrise: ${fmtTime(sunrise)} | Sunset: ${fmtTime(sunset)}${hourlyForecast}${week
                                     results.push({
                                         title: page.title,
                                         url: `https://en.wikipedia.org/wiki/${encodeURIComponent(page.title.replace(/ /g, '_'))}`,
-                                        snippet: page.extract.slice(0, 300) + (page.extract.length > 300 ? '...' : '')
+                                        snippet: page.extract.slice(0, 300) + (page.extract.length > 300 ? '...' : ''),
+                                        _source: 'Wikipedia'
                                     });
+                                }
+                            }
+
+                            // 🚨 USER REQUEST SECURE: Verify Wikipedia against other sources 🚨
+                            if (results.length > 0) {
+                                console.log('[Verification] Wikipedia match found. Running corroborating searches to verify reliability...');
+                                const verificationQuery = `${titles[0]} news latest`;
+                                const [ddgVerify, hnVerify] = await Promise.allSettled([
+                                    getDuckDuckGoResults(verificationQuery),
+                                    getHackerNewsResults(titles[0])
+                                ]);
+
+                                if (ddgVerify.status === 'fulfilled' && ddgVerify.value.length > 0) {
+                                    const topVerify = ddgVerify.value[0];
+                                    topVerify._source = 'Verification (Web)';
+                                    results.push(topVerify);
+                                }
+                                if (hnVerify.status === 'fulfilled' && hnVerify.value.length > 0) {
+                                    const hnTop = hnVerify.value[0];
+                                    hnTop._source = 'Verification (Hacker News)';
+                                    results.push(hnTop);
                                 }
                             }
                         }
@@ -7078,10 +7100,7 @@ Sunrise: ${fmtTime(sunrise)} | Sunset: ${fmtTime(sunset)}${hourlyForecast}${week
 
                         // ── PHASE 2: Read actual web pages (ChatGPT-level browsing) ──
                         if (webSearchResults && webSearchResults.length > 0) {
-                            if (searchIndicator && searchIndicator.parentNode) {
-                                searchIndicator.querySelector('span').textContent = 'Reading pages…';
-                            }
-                            webSearchResults = await enrichResultsWithPageContent(webSearchResults, 6);
+                            webSearchResults = await enrichResultsWithPageContent(webSearchResults, 3);
                         }
                     } else {
                         console.log('[Search] Skipped search — query too vague or trivial');
